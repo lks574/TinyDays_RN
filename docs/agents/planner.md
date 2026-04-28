@@ -14,6 +14,7 @@ TinyDays의 제품 요청을 구현 가능한 범위로 좁히고, 명세 작성
 ```txt
 AGENTS.md
 docs/product/mvp-scope.md
+docs/product/roadmaps/mvp-pr-roadmap.md
 docs/architecture/decisions.md
 docs/engineering/project-setup.md
 ```
@@ -42,6 +43,7 @@ docs/engineering/project-setup.md
 
 - 데이터 모델, 백엔드, 인증, 저장소, 되돌리기 어려운 구조 결정은 `docs/architecture/decisions.md` 업데이트 대상이다.
 - 제품 범위 변경은 `docs/product/mvp-scope.md` 업데이트 대상이다.
+- PR 단위 진행 경계 변경은 `docs/product/roadmaps/mvp-pr-roadmap.md` 업데이트 대상이다.
 - 세팅 명령어, Node/Expo/테스트 스크립트 변경은 `docs/engineering/project-setup.md` 업데이트 대상이다.
 
 ## 출력 형식

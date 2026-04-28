@@ -14,6 +14,7 @@ TinyDays의 실제 코드와 필요한 문서를 구현하는 에이전트입니
 ```txt
 AGENTS.md
 docs/product/mvp-scope.md
+docs/product/roadmaps/mvp-pr-roadmap.md
 docs/architecture/decisions.md
 docs/engineering/project-setup.md
 ```
