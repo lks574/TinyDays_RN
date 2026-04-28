@@ -12,7 +12,7 @@ React Web은 이후 가족 조회와 관리에 적합한 대시보드로 둡니�
 
 ## ADR-002: 초기 세팅은 Expo 우선
 
-상태: 제안
+상태: 채택
 
 필수 네이티브 기능이 Expo Dev Client 또는 Bare React Native를 요구하기 전까지는 Expo + TypeScript로 모바일 앱을 시작합니다.
 
@@ -22,6 +22,25 @@ React Web은 이후 가족 조회와 관리에 적합한 대시보드로 둡니�
 - iOS, Android, 웹 실험을 한 구조에서 시작할 수 있습니다.
 - 에셋, 권한, 빌드 흐름이 단순합니다.
 - 이후 네이티브 모듈이 필요해지면 Dev Client로 확장할 수 있습니다.
+
+초기 기술 기준:
+
+- 런타임: Node 22 LTS.
+- 패키지 매니저: npm.
+- 앱 프레임워크: Expo SDK 54.
+- UI 런타임: React Native 0.81, React 19.
+- 언어: TypeScript 5.9.
+- 검증: ESLint 9, Jest 29, `jest-expo` 54.
+
+버전의 세부 범위는 `package.json`과 `docs/engineering/project-setup.md`를 기준으로 확인합니다. Expo 관련 패키지는 `npx expo install --check`가 통과하는 조합을 유지합니다.
+
+선택 이유:
+
+- Node는 최신 비-LTS보다 LTS가 Expo와 React Native 개발 환경에서 재현성이 좋습니다.
+- npm은 초기 저장소에 `package-lock.json`을 만들었고, MVP 단계에서 별도 패키지 매니저 도입 비용을 만들 필요가 없습니다.
+- Expo, React Native, React, TypeScript 버전은 `create-expo-app`의 TypeScript 템플릿과 Expo SDK 54 호환 조합을 따릅니다.
+- ESLint와 `eslint-config-expo`, Jest와 `jest-expo`는 Expo SDK 54에서 `npx expo install --check`가 통과하는 조합을 기준으로 둡니다.
+- 버전 업그레이드는 개별 패키지를 임의로 올리기보다 Expo SDK 업그레이드 단위로 검토합니다.
 
 ## ADR-003: 초기 백엔드 후보는 Supabase
 
@@ -93,4 +112,3 @@ MVP에서는 서버 사이드 AI 대신 앱 내부 룰 기반 자연어 파서�
 
 - `parent`: 기록 생성/수정, 사진 업로드, 초대, 아기 프로필 관리 가능.
 - `family`: 타임라인, 사진, 영상 조회 가능. 이후 댓글 또는 반응 가능.
-

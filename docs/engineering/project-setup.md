@@ -12,6 +12,25 @@ Expo + React Native + TypeScript 앱이 저장소 루트에 스캐폴딩되었�
 - 앱 셸과 도메인 경계가 잡힌 뒤 Supabase 도입.
 - 자연어 파서 같은 도메인 로직은 단위 테스트 작성.
 
+## 확정 기술 스택
+
+PR-01 기준으로 아래 기술과 버전을 사용합니다.
+
+| 구분 | 기술 | 기준 버전 |
+|------|------|-----------|
+| 런타임 | Node.js | 22 LTS |
+| 패키지 매니저 | npm | `package-lock.json` 기준 |
+| 앱 프레임워크 | Expo | `~54.0.33` |
+| UI 런타임 | React Native | `0.81.5` |
+| UI 라이브러리 | React | `19.1.0` |
+| 언어 | TypeScript | `~5.9.2` |
+| 린트 | ESLint | `^9.39.4` |
+| Expo 린트 설정 | `eslint-config-expo` | `~10.0.0` |
+| 테스트 러너 | Jest | `^29.7.0` |
+| Expo 테스트 프리셋 | `jest-expo` | `~54.0.17` |
+
+Expo 관련 의존성은 임의로 올리지 않고 `npx expo install --check`가 통과하는 조합을 유지합니다.
+
 ## Node 버전
 
 프로젝트 기준 Node 버전은 `.nvmrc`에 정의합니다.
