@@ -20,6 +20,7 @@ export type CreateTextLogCandidateOptions = {
   parsedLog: EditableParsedLog;
   now: string;
   sequence: number;
+  id?: string;
 };
 
 const TEMP_CHILD_ID = "local-child";
@@ -70,7 +71,7 @@ export function createTextLogCandidate(
   };
 
   return createBabyLog(input, {
-    id: `local-text-log-${options.sequence}`,
+    id: options.id ?? `local-text-log-${options.sequence}`,
     now: options.now,
   });
 }

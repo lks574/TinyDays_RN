@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -17,6 +17,7 @@ import {
   createTextLogCandidate,
   type EditableParsedLog,
   getLastSleepLogType,
+  localBabyLogRepository,
   QUICK_LOG_ACTIONS,
   sortLogsByRecent,
   TEXT_LOG_TYPE_OPTIONS,
@@ -29,22 +30,54 @@ export default function HomeScreen() {
   const [logs, setLogs] = useState<BabyLog[]>([]);
   const [textInput, setTextInput] = useState('');
   const [parseError, setParseError] = useState('');
+  const [storageError, setStorageError] = useState('');
+  const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [pendingLog, setPendingLog] = useState<EditableParsedLog | null>(null);
 
   const recentLogs = useMemo(() => sortLogsByRecent(logs).slice(0, 5), [logs]);
 
-  function handleQuickLog(actionId: QuickLogActionId) {
-    setLogs((currentLogs) => {
-      const now = new Date().toISOString();
-      const nextLog = createQuickLogCandidate({
-        actionId,
-        now,
-        sequence: currentLogs.length + 1,
-        lastSleepLogType: getLastSleepLogType(sortLogsByRecent(currentLogs)),
+  useEffect(() => {
+    let isActive = true;
+
+    localBabyLogRepository
+      .listLogs()
+      .then((storedLogs) => {
+        if (!isActive) {
+          return;
+        }
+
+        setLogs(storedLogs);
+        setStorageError('');
+      })
+      .catch(() => {
+        if (!isActive) {
+          return;
+        }
+
+        setStorageError('저장된 기록을 불러오지 못했습니다.');
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsLoadingLogs(false);
+        }
       });
 
-      return sortLogsByRecent([nextLog, ...currentLogs]);
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  async function handleQuickLog(actionId: QuickLogActionId) {
+    const now = new Date().toISOString();
+    const nextLog = createQuickLogCandidate({
+      actionId,
+      now,
+      sequence: logs.length + 1,
+      id: createClientLogId('quick'),
+      lastSleepLogType: getLastSleepLogType(recentLogs),
     });
+
+    await saveLog(nextLog, '빠른 기록을 저장하지 못했습니다.');
   }
 
   function handleParseText() {
@@ -74,28 +107,45 @@ export default function HomeScreen() {
     );
   }
 
-  function handleSavePendingLog() {
+  async function handleSavePendingLog() {
     if (pendingLog === null) {
       return;
     }
 
-    setLogs((currentLogs) => {
-      const now = new Date().toISOString();
-      const nextLog = createTextLogCandidate({
-        parsedLog: pendingLog,
-        now,
-        sequence: currentLogs.length + 1,
-      });
-
-      return sortLogsByRecent([nextLog, ...currentLogs]);
+    const now = new Date().toISOString();
+    const nextLog = createTextLogCandidate({
+      parsedLog: pendingLog,
+      now,
+      sequence: logs.length + 1,
+      id: createClientLogId('text'),
     });
-    setPendingLog(null);
-    setTextInput('');
-    setParseError('');
+
+    const saved = await saveLog(nextLog, '텍스트 기록을 저장하지 못했습니다.');
+
+    if (saved) {
+      setPendingLog(null);
+      setTextInput('');
+      setParseError('');
+    }
   }
 
   function handleCancelPendingLog() {
     setPendingLog(null);
+  }
+
+  async function saveLog(log: BabyLog, errorMessage: string): Promise<boolean> {
+    try {
+      const nextLogs = await localBabyLogRepository.saveLog(log);
+
+      setLogs(nextLogs);
+      setStorageError('');
+
+      return true;
+    } catch {
+      setStorageError(errorMessage);
+
+      return false;
+    }
   }
 
   return (
@@ -109,10 +159,17 @@ export default function HomeScreen() {
           </View>
           <View style={styles.statusPill}>
             <Text style={styles.statusText}>
-              {logs.length > 0 ? '방금 기록됨' : '기록 대기'}
+              {isLoadingLogs
+                ? '불러오는 중'
+                : logs.length > 0
+                  ? '방금 기록됨'
+                  : '기록 대기'}
             </Text>
           </View>
         </View>
+        {storageError.length > 0 ? (
+          <Text style={styles.storageErrorText}>{storageError}</Text>
+        ) : null}
 
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
@@ -359,6 +416,12 @@ function formatConfidence(confidence: number): string {
   return `${Math.round(confidence * 100)}%`;
 }
 
+function createClientLogId(kind: 'quick' | 'text'): string {
+  const randomPart = Math.random().toString(36).slice(2, 8);
+
+  return `local-${kind}-log-${Date.now()}-${randomPart}`;
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -462,6 +525,12 @@ const styles = StyleSheet.create({
   },
   errorText: {
     marginTop: 8,
+    color: '#B42318',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  storageErrorText: {
+    marginTop: 12,
     color: '#B42318',
     fontSize: 13,
     fontWeight: '700',

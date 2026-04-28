@@ -24,6 +24,7 @@ export type CreateQuickLogCandidateOptions = {
   actionId: QuickLogActionId;
   now: string;
   sequence: number;
+  id?: string;
   lastSleepLogType?: Extract<BabyLogType, "sleep_start" | "sleep_end"> | null;
 };
 
@@ -47,7 +48,7 @@ export function createQuickLogCandidate(
   const input = createQuickLogInput(options);
 
   return createBabyLog(input, {
-    id: `local-log-${options.sequence}`,
+    id: options.id ?? `local-log-${options.sequence}`,
     now: options.now,
   });
 }

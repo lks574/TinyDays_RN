@@ -12,3 +12,4 @@ export {
   isBabyLogType,
   needsBabyLogConfirmation,
 } from "./baby-log";
+export type { BabyLogRepository } from "./baby-log-repository";

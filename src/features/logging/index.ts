@@ -15,3 +15,8 @@ export {
   type CreateTextLogCandidateOptions,
   type EditableParsedLog,
 } from "./text-log";
+
+export {
+  createLocalBabyLogRepository,
+  localBabyLogRepository,
+} from "./local-baby-log-repository";
