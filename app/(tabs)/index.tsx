@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BabyLog, BabyLogType } from '../../src/domain/baby-logs';
+import { createTodaySummary } from '../../src/domain/insights';
 import { parseBabyLogText } from '../../src/domain/parser';
 import {
   createEditableParsedLog,
@@ -35,6 +36,10 @@ export default function HomeScreen() {
   const [pendingLog, setPendingLog] = useState<EditableParsedLog | null>(null);
 
   const recentLogs = useMemo(() => sortLogsByRecent(logs).slice(0, 5), [logs]);
+  const todaySummary = useMemo(
+    () => createTodaySummary(logs, new Date().toISOString()),
+    [logs],
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -161,8 +166,8 @@ export default function HomeScreen() {
             <Text style={styles.statusText}>
               {isLoadingLogs
                 ? '불러오는 중'
-                : logs.length > 0
-                  ? '방금 기록됨'
+                : todaySummary.lastLog
+                  ? getLogTypeLabel(todaySummary.lastLog.log_type)
                   : '기록 대기'}
             </Text>
           </View>
@@ -173,14 +178,44 @@ export default function HomeScreen() {
 
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{logs.length}</Text>
-            <Text style={styles.summaryLabel}>오늘 기록</Text>
+            <Text style={styles.summaryValue}>
+              {todaySummary.feeding.count}회
+            </Text>
+            <Text style={styles.summaryLabel}>
+              수유 {formatFeedingTotal(todaySummary.feeding)}
+            </Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryValue}>
-              {recentLogs[0] ? getLogTypeLabel(recentLogs[0].log_type) : '-'}
+              {formatSleepTotal(todaySummary.sleep.totalMinutes)}
             </Text>
-            <Text style={styles.summaryLabel}>마지막 기록</Text>
+            <Text style={styles.summaryLabel}>
+              수면 {todaySummary.sleep.count}회
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>
+              {todaySummary.diaper.totalCount}회
+            </Text>
+            <Text style={styles.summaryLabel}>
+              기저귀 소변 {todaySummary.diaper.peeCount} · 대변{' '}
+              {todaySummary.diaper.poopCount}
+            </Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>
+              {todaySummary.lastLog
+                ? getLogTypeLabel(todaySummary.lastLog.log_type)
+                : '-'}
+            </Text>
+            <Text style={styles.summaryLabel}>
+              {todaySummary.lastLog
+                ? formatLogTime(todaySummary.lastLog.recorded_at)
+                : '마지막 기록 없음'}
+            </Text>
           </View>
         </View>
 
@@ -414,6 +449,36 @@ function formatLogValue(log: BabyLog): string {
 
 function formatConfidence(confidence: number): string {
   return `${Math.round(confidence * 100)}%`;
+}
+
+function formatFeedingTotal(feeding: {
+  totalAmount: number;
+  unit: string | null;
+}): string {
+  if (feeding.unit === null || feeding.totalAmount === 0) {
+    return '총량 없음';
+  }
+
+  return `${feeding.totalAmount}${feeding.unit}`;
+}
+
+function formatSleepTotal(totalMinutes: number): string {
+  if (totalMinutes === 0) {
+    return '0분';
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) {
+    return `${minutes}분`;
+  }
+
+  if (minutes === 0) {
+    return `${hours}시간`;
+  }
+
+  return `${hours}시간 ${minutes}분`;
 }
 
 function createClientLogId(kind: 'quick' | 'text'): string {
