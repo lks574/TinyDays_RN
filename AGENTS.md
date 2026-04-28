@@ -24,6 +24,55 @@ TinyDays는 가족 중심 베이비 라이프로그 앱입니다. 첫 번째 제
 - 타임라인과 분석을 단순하게 유지하기 위해 MVP에서는 통합 `baby_logs` 모델로 시작한다.
 - 저장소, 백엔드, 데이터 모델 결정은 구현 전에 문서로 남긴다.
 
+## 에이전트 역할 문서
+
+역할별 세부 지침은 `docs/agents/`에 둔다. 작업 성격이 명확하면 해당 문서를 먼저 참고한다.
+
+- 탐색과 구조 파악: `docs/agents/explorer.md`
+- 요구사항 정리와 구현 계획: `docs/agents/planner.md`
+- 기능 명세 작성: `docs/agents/spec-writer.md`
+- 코드와 문서 구현: `docs/agents/executor.md`
+- 변경 검증: `docs/agents/validator.md`
+- 코드 리뷰: `docs/agents/reviewer.md`
+
+이 문서들은 TinyDays 프로젝트용 역할 가이드다. 에이전트가 자동 로드하는 최상위 규칙은 이 `AGENTS.md`이며, 세부 역할이 필요할 때 `docs/agents/` 문서를 추가로 읽는다.
+
+### 역할 호출 별칭
+
+사용자가 아래 형식으로 요청하면 해당 역할 문서를 먼저 읽고 그 기준으로 작업한다.
+
+- `td:explore`: `docs/agents/explorer.md`
+- `td:plan`: `docs/agents/planner.md`
+- `td:spec`: `docs/agents/spec-writer.md`
+- `td:exec`: `docs/agents/executor.md`
+- `td:validate`: `docs/agents/validator.md`
+- `td:review`: `docs/agents/reviewer.md`
+
+`td`는 TinyDays의 프로젝트 접두어다. 이 별칭은 셸 명령이나 외부 도구 명령이 아니라 대화 안에서 역할을 명확히 지정하기 위한 요청 형식이다. Codex TUI는 `/`로 시작하는 입력을 내장 slash command로 먼저 처리하므로, TinyDays 역할 호출에는 slash 없이 `td`를 사용한다.
+
+사용자가 `td`만 입력하면 아래 역할 목록과 사용 예시를 짧게 안내한다.
+
+```txt
+TinyDays 역할 명령
+
+td:explore   구조 파악
+td:plan      요구사항/계획
+td:spec      SPEC 작성
+td:exec      구현
+td:validate  검증
+td:review    리뷰
+
+예: td:plan 자연어 기록 플로우 잡아줘
+```
+
+### 모델과 역할 전환
+
+모델 선택은 프로젝트 문서가 아니라 Codex 실행 환경에서 한다. `docs/agents/` 문서에는 특정 모델명을 지정하지 않는다.
+
+역할 전환은 자동으로 하지 않는다. 예를 들어 `td:plan` 작업 중 다음 단계가 `spec-writer`, `executor`, `validator`, `reviewer`라면, 전환 전에 사용자에게 확인한다. 사용자가 한 요청 안에서 여러 역할 실행을 명시한 경우에만 순서대로 진행한다.
+
+역할 작업을 마무리할 때는 항상 다음 행동을 추천한다. 추천은 실행이 아니라 제안이며, 다른 역할로 넘어가야 하면 사용자 확인을 먼저 받는다.
+
 ## 문서 관리 규칙
 
 - 프로젝트 문서와 에이전트 응답은 기본적으로 한국어로 작성한다.
