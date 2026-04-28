@@ -11,6 +11,7 @@ Expo + React Native + TypeScript 앱이 저장소 루트에 스캐폴딩되었�
 - 탭/내비게이션 구조는 Expo Router를 사용한다.
 - PR-07 기록 저장소는 `AsyncStorage`로 시작하고, Supabase는 인증/가족/동기화 범위에서 재검토한다.
 - PR-11 가족과 아기 최소 모델은 `AsyncStorage` 로컬 family context로 시작한다.
+- PR-12 사진 업로드 진입은 `expo-image-picker`와 `AsyncStorage` 로컬 사진 메타데이터로 시작한다.
 - 자연어 파서 같은 도메인 로직은 단위 테스트 작성.
 
 ## 확정 기술 스택
@@ -22,6 +23,7 @@ PR-01 기준으로 아래 기술과 버전을 사용합니다.
 | 런타임 | Node.js | 22 LTS |
 | 패키지 매니저 | npm | `package-lock.json` 기준 |
 | 앱 프레임워크 | Expo | `~54.0.33` |
+| 이미지 선택 | `expo-image-picker` | `~17.0.11` |
 | 앱 라우팅 | Expo Router | `~6.0.23` |
 | UI 런타임 | React Native | `0.81.5` |
 | UI 라이브러리 | React | `19.1.0` |
