@@ -4,6 +4,12 @@ import {
   type BabyLogType,
   type CreateBabyLogInput,
 } from "../../domain/baby-logs";
+import {
+  DEFAULT_CHILD_ID,
+  DEFAULT_FAMILY_ID,
+  DEFAULT_PARENT_ID,
+  type LogOwnerContext,
+} from "../../domain/family";
 import type { ParsedBabyLogCandidate } from "../../domain/parser";
 
 export type EditableParsedLog = {
@@ -21,11 +27,14 @@ export type CreateTextLogCandidateOptions = {
   now: string;
   sequence: number;
   id?: string;
+  ownerContext?: LogOwnerContext;
 };
 
-const TEMP_CHILD_ID = "local-child";
-const TEMP_FAMILY_ID = "local-family";
-const TEMP_CREATED_BY = "local-parent";
+const DEFAULT_LOG_OWNER_CONTEXT: LogOwnerContext = {
+  child_id: DEFAULT_CHILD_ID,
+  family_id: DEFAULT_FAMILY_ID,
+  created_by: DEFAULT_PARENT_ID,
+};
 
 export const TEXT_LOG_TYPE_OPTIONS: readonly BabyLogType[] = [
   "feeding",
@@ -56,10 +65,11 @@ export function createEditableParsedLog(
 export function createTextLogCandidate(
   options: CreateTextLogCandidateOptions,
 ): BabyLog {
+  const ownerContext = options.ownerContext ?? DEFAULT_LOG_OWNER_CONTEXT;
   const input: CreateBabyLogInput = {
-    child_id: TEMP_CHILD_ID,
-    family_id: TEMP_FAMILY_ID,
-    created_by: TEMP_CREATED_BY,
+    child_id: ownerContext.child_id,
+    family_id: ownerContext.family_id,
+    created_by: ownerContext.created_by,
     log_type: options.parsedLog.log_type,
     recorded_at: options.parsedLog.recorded_at,
     amount: parseOptionalNumber(options.parsedLog.amountText),

@@ -18,12 +18,34 @@ describe("createQuickLogCandidate", () => {
 
     expect(log).toMatchObject({
       id: "local-log-1",
+      child_id: "local-child",
+      family_id: "local-family",
+      created_by: "local-parent",
       log_type: "feeding",
       recorded_at: now,
       amount: 120,
       unit: "ml",
       source: "quick_button",
       confidence: 1,
+    });
+  });
+
+  it("uses the provided family and child owner context", () => {
+    const log = createQuickLogCandidate({
+      actionId: "feeding",
+      now,
+      sequence: 1,
+      ownerContext: {
+        child_id: "child-2",
+        family_id: "family-2",
+        created_by: "parent-2",
+      },
+    });
+
+    expect(log).toMatchObject({
+      child_id: "child-2",
+      family_id: "family-2",
+      created_by: "parent-2",
     });
   });
 

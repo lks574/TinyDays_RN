@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -7,11 +7,20 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BabyLog, BabyLogType } from '../../src/domain/baby-logs';
+import {
+  calculateDayCount,
+  createDefaultFamilyContext,
+  getLogOwnerContext,
+  getSelectedChild,
+  type FamilyContext,
+} from '../../src/domain/family';
 import { createTodaySummary } from '../../src/domain/insights';
 import { parseBabyLogText } from '../../src/domain/parser';
+import { localFamilyContextRepository } from '../../src/features/family';
 import {
   createEditableParsedLog,
   createQuickLogCandidate,
@@ -29,6 +38,9 @@ import { theme } from '../../src/shared/ui/theme';
 
 export default function HomeScreen() {
   const [logs, setLogs] = useState<BabyLog[]>([]);
+  const [familyContext, setFamilyContext] = useState<FamilyContext>(() =>
+    createDefaultFamilyContext(new Date().toISOString()),
+  );
   const [textInput, setTextInput] = useState('');
   const [parseError, setParseError] = useState('');
   const [storageError, setStorageError] = useState('');
@@ -40,37 +52,55 @@ export default function HomeScreen() {
     () => createTodaySummary(logs, new Date().toISOString()),
     [logs],
   );
+  const selectedChild = useMemo(
+    () => getSelectedChild(familyContext),
+    [familyContext],
+  );
+  const dayCount = useMemo(
+    () => calculateDayCount(selectedChild.birth_date, new Date().toISOString()),
+    [selectedChild.birth_date],
+  );
+  const logOwnerContext = useMemo(
+    () => getLogOwnerContext(familyContext),
+    [familyContext],
+  );
 
-  useEffect(() => {
-    let isActive = true;
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
 
-    localBabyLogRepository
-      .listLogs()
-      .then((storedLogs) => {
-        if (!isActive) {
-          return;
-        }
+      setIsLoadingLogs(true);
+      Promise.all([
+        localBabyLogRepository.listLogs(),
+        localFamilyContextRepository.getContext(new Date().toISOString()),
+      ])
+        .then(([storedLogs, storedFamilyContext]) => {
+          if (!isActive) {
+            return;
+          }
 
-        setLogs(storedLogs);
-        setStorageError('');
-      })
-      .catch(() => {
-        if (!isActive) {
-          return;
-        }
+          setLogs(storedLogs);
+          setFamilyContext(storedFamilyContext);
+          setStorageError('');
+        })
+        .catch(() => {
+          if (!isActive) {
+            return;
+          }
 
-        setStorageError('저장된 기록을 불러오지 못했습니다.');
-      })
-      .finally(() => {
-        if (isActive) {
-          setIsLoadingLogs(false);
-        }
-      });
+          setStorageError('저장된 정보를 불러오지 못했습니다.');
+        })
+        .finally(() => {
+          if (isActive) {
+            setIsLoadingLogs(false);
+          }
+        });
 
-    return () => {
-      isActive = false;
-    };
-  }, []);
+      return () => {
+        isActive = false;
+      };
+    }, []),
+  );
 
   async function handleQuickLog(actionId: QuickLogActionId) {
     const now = new Date().toISOString();
@@ -79,6 +109,7 @@ export default function HomeScreen() {
       now,
       sequence: logs.length + 1,
       id: createClientLogId('quick'),
+      ownerContext: logOwnerContext,
       lastSleepLogType: getLastSleepLogType(recentLogs),
     });
 
@@ -123,6 +154,7 @@ export default function HomeScreen() {
       now,
       sequence: logs.length + 1,
       id: createClientLogId('text'),
+      ownerContext: logOwnerContext,
     });
 
     const saved = await saveLog(nextLog, '텍스트 기록을 저장하지 못했습니다.');
@@ -159,8 +191,8 @@ export default function HomeScreen() {
         <Text style={styles.appName}>{APP_NAME}</Text>
         <View style={styles.header}>
           <View>
-            <Text style={styles.childName}>하루</Text>
-            <Text style={styles.dayCount}>D+120</Text>
+            <Text style={styles.childName}>{selectedChild.name}</Text>
+            <Text style={styles.dayCount}>{formatDayCount(dayCount)}</Text>
           </View>
           <View style={styles.statusPill}>
             <Text style={styles.statusText}>
@@ -479,6 +511,10 @@ function formatSleepTotal(totalMinutes: number): string {
   }
 
   return `${hours}시간 ${minutes}분`;
+}
+
+function formatDayCount(dayCount: number | null): string {
+  return dayCount === null ? '생년월일 미등록' : `D+${dayCount}`;
 }
 
 function createClientLogId(kind: 'quick' | 'text'): string {

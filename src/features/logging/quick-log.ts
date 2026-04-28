@@ -4,6 +4,12 @@ import {
   type BabyLogType,
   type CreateBabyLogInput,
 } from "../../domain/baby-logs";
+import {
+  DEFAULT_CHILD_ID,
+  DEFAULT_FAMILY_ID,
+  DEFAULT_PARENT_ID,
+  type LogOwnerContext,
+} from "../../domain/family";
 
 export type QuickLogActionId =
   | "feeding"
@@ -25,12 +31,15 @@ export type CreateQuickLogCandidateOptions = {
   now: string;
   sequence: number;
   id?: string;
+  ownerContext?: LogOwnerContext;
   lastSleepLogType?: Extract<BabyLogType, "sleep_start" | "sleep_end"> | null;
 };
 
-const TEMP_CHILD_ID = "local-child";
-const TEMP_FAMILY_ID = "local-family";
-const TEMP_CREATED_BY = "local-parent";
+const DEFAULT_LOG_OWNER_CONTEXT: LogOwnerContext = {
+  child_id: DEFAULT_CHILD_ID,
+  family_id: DEFAULT_FAMILY_ID,
+  created_by: DEFAULT_PARENT_ID,
+};
 
 export const QUICK_LOG_ACTIONS: readonly QuickLogAction[] = [
   { id: "feeding", label: "수유", detail: "120 ml" },
@@ -72,10 +81,11 @@ function createQuickLogInput(
   options: CreateQuickLogCandidateOptions,
 ): CreateBabyLogInput {
   const logType = getQuickLogType(options);
+  const ownerContext = options.ownerContext ?? DEFAULT_LOG_OWNER_CONTEXT;
   const baseInput: CreateBabyLogInput = {
-    child_id: TEMP_CHILD_ID,
-    family_id: TEMP_FAMILY_ID,
-    created_by: TEMP_CREATED_BY,
+    child_id: ownerContext.child_id,
+    family_id: ownerContext.family_id,
+    created_by: ownerContext.created_by,
     log_type: logType,
     recorded_at: options.now,
     source: "quick_button",

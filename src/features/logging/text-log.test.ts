@@ -48,6 +48,9 @@ describe("createTextLogCandidate", () => {
 
     expect(log).toMatchObject({
       id: "local-text-log-3",
+      child_id: "local-child",
+      family_id: "local-family",
+      created_by: "local-parent",
       log_type: "temperature",
       recorded_at: "2026-04-28T10:00:00.000Z",
       amount: 37.8,
@@ -56,6 +59,33 @@ describe("createTextLogCandidate", () => {
       source: "manual",
       original_text: "열 37.8도",
       confidence: 0.9,
+    });
+  });
+
+  it("uses the provided family and child owner context", () => {
+    const log = createTextLogCandidate({
+      parsedLog: {
+        log_type: "memo",
+        recorded_at: "2026-04-28T10:00:00.000Z",
+        amountText: "",
+        unit: "",
+        memo: "가족 context 확인",
+        original_text: "가족 context 확인",
+        confidence: 0.9,
+      },
+      now: "2026-04-28T10:01:00.000Z",
+      sequence: 5,
+      ownerContext: {
+        child_id: "child-2",
+        family_id: "family-2",
+        created_by: "parent-2",
+      },
+    });
+
+    expect(log).toMatchObject({
+      child_id: "child-2",
+      family_id: "family-2",
+      created_by: "parent-2",
     });
   });
 
