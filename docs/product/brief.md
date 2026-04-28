@@ -1,60 +1,60 @@
-# Product Brief
+# 제품 브리프
 
-## Summary
+## 요약
 
-TinyDays is a private baby lifelog app for families. Parents record baby care events with minimal input, and the app turns those records into daily summaries, pattern insights, and a family-friendly timeline.
+TinyDays는 가족을 위한 비공개 베이비 라이프로그 앱입니다. 부모는 최소한의 입력으로 아기 돌봄 기록을 남기고, 앱은 그 기록을 오늘 요약, 패턴 인사이트, 가족이 보기 좋은 타임라인으로 전환합니다.
 
-The product is not only a manual tracker. Its core value is helping families understand the baby's rhythm over time while preserving photos and records in one private place.
+이 제품은 단순 수동 기록 앱에 머물지 않습니다. 핵심 가치는 가족이 아기의 생활 리듬을 이해하고, 사진과 기록을 한 곳에 안전하게 쌓아가는 데 있습니다.
 
-## Core Product Statement
+## 핵심 문장
 
-Photos are organized automatically, a short sentence becomes a baby care record, and accumulated records reveal the baby's daily patterns.
+사진은 자동으로 정리되고, 짧은 문장은 육아 기록이 되며, 쌓인 기록은 아기의 생활 패턴을 알려줍니다.
 
-## Primary Users
+## 주요 사용자
 
-- Parents who need fast, reliable logging during newborn and infant care.
-- Family members who want to follow the baby's growth through photos, timelines, and later videos.
+- 신생아와 영유아를 돌보며 빠르고 신뢰할 수 있는 기록이 필요한 부모.
+- 사진, 타임라인, 이후 영상으로 아기의 성장 과정을 보고 싶은 가족 구성원.
 
-## Core Value
+## 핵심 가치
 
-- Easy recording through quick buttons, natural-language text, and voice input.
-- Pattern understanding through summaries, basic statistics, and simple predictions.
-- Family memory through private timelines, photos, and eventually generated videos.
+- 빠른 버튼, 자연어 텍스트, 음성 입력을 통한 쉬운 기록.
+- 오늘 요약, 기본 통계, 간단한 예측을 통한 패턴 이해.
+- 비공개 타임라인, 사진, 이후 생성 영상으로 쌓이는 가족 기억.
 
-## Initial Platform Strategy
+## 초기 플랫폼 전략
 
-The first version is a React Native mobile app because baby care events happen in real time and are usually recorded on a phone.
+첫 번째 버전은 React Native 모바일 앱으로 만든다. 육아 기록은 실시간으로 발생하고 대부분 휴대폰에서 입력되기 때문에 모바일 경험이 우선입니다.
 
-React Web is planned as a later dashboard for family viewing, timeline browsing, photo viewing, reactions, comments, and invite management.
+React Web은 이후 가족 대시보드로 계획합니다. 웹은 가족 피드 보기, 날짜별 타임라인 탐색, 사진/영상 감상, 반응/댓글, 초대 관리에 적합합니다.
 
-## MVP Product Direction
+## MVP 제품 방향
 
-TinyDays should first prove that parents can record events every day with less friction than a typical manual tracker. Analysis, photos, and family sharing should build on top of reliable records.
+TinyDays는 먼저 부모가 일반적인 수동 기록 앱보다 적은 피로도로 매일 기록할 수 있음을 증명해야 합니다. 분석, 사진, 가족 공유는 신뢰할 수 있는 기록 데이터 위에 쌓습니다.
 
-The first implementation should therefore focus on:
+초기 구현은 다음에 집중합니다.
 
-- Family and baby setup.
-- Quick recording.
-- Natural-language recording.
-- Voice-to-text recording with confirmation.
-- Daily timeline.
-- Today summary.
-- Basic pattern analysis.
+- 가족과 아기 초기 설정.
+- 빠른 기록.
+- 자연어 기록.
+- 확인 절차가 있는 음성-텍스트 기록.
+- 날짜별 타임라인.
+- 오늘 요약.
+- 기본 패턴 분석.
 
-## Differentiation
+## 차별점
 
-Existing baby tracker apps already handle manual logs and basic statistics well. TinyDays should reuse the proven parts of that model, then extend it with automation, analysis, and family content.
+기존 육아 기록 앱은 수동 기록과 기본 통계를 이미 잘 제공합니다. TinyDays는 검증된 장점을 가져오되, 자동화, 분석, 가족 콘텐츠 경험을 더합니다.
 
-Key differences:
+핵심 차이는 다음과 같습니다.
 
-- From record keeping to pattern understanding.
-- From button-only input to text and voice-assisted input.
-- From parent-only tracking to family timeline and sharing.
-- From text records to photo and video memories.
+- 기록 보관에서 패턴 이해로 확장.
+- 버튼 입력 중심에서 텍스트/음성 보조 입력으로 확장.
+- 부모 중심 기록에서 가족 타임라인과 공유로 확장.
+- 텍스트 기록에서 사진과 영상 기억으로 확장.
 
-## Cost And Privacy Direction
+## 비용과 개인정보 방향
 
-MVP should avoid server-side AI costs. Natural-language parsing should be rule-based inside the app, and speech recognition should rely on OS capabilities.
+MVP에서는 서버 사이드 AI 비용을 만들지 않습니다. 자연어 파싱은 앱 내부 룰 기반으로 처리하고, 음성 인식은 OS 기능을 활용합니다.
 
-All data should be private by default. Family membership and `family_id`-scoped authorization are required for records, photos, and videos.
+모든 데이터는 기본적으로 비공개입니다. 기록, 사진, 영상 접근은 가족 구성원 여부와 `family_id` 기준 권한 제어를 전제로 합니다.
 

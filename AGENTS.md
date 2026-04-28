@@ -1,49 +1,62 @@
-# TinyDays Agent Guide
+# TinyDays 에이전트 가이드
 
-## Project Intent
+## 프로젝트 의도
 
-TinyDays is a family-centered baby lifelog app. The first product target is a React Native mobile app that helps parents record baby care events with minimal effort, then turns those records into summaries, patterns, and family timelines.
+TinyDays는 가족 중심 베이비 라이프로그 앱입니다. 첫 번째 제품 목표는 부모가 최소한의 행동으로 육아 기록을 남기고, 그 기록을 오늘 요약, 생활 패턴, 가족 타임라인으로 전환하는 React Native 모바일 앱입니다.
 
-The product should prioritize daily use by parents over feature breadth. Fast recording, trustworthy data, privacy, and low operating cost are core constraints.
+기능을 많이 넣는 것보다 부모가 매일 실제로 쓰는 흐름을 우선합니다. 빠른 기록, 신뢰할 수 있는 데이터, 개인정보 보호, 낮은 운영 비용이 핵심 제약입니다.
 
-## Product Principles
+## 제품 원칙
 
-- Build mobile first. React Web is a later family dashboard, not the initial product surface.
-- Optimize for low-friction recording: quick buttons, text input, and voice-to-text.
-- Prefer confirmation before saving parsed natural-language records until parser confidence is proven.
-- Keep MVP AI-free on the server. Use OS speech recognition and an in-app rule-based parser first.
-- Treat baby photos, health-adjacent records, and family membership as private data.
-- Avoid expanding into community, commerce, vaccination scheduling, or advanced AI before the core loop is validated.
+- 모바일 앱을 먼저 만든다. React Web은 초기 제품 화면이 아니라 이후 가족 대시보드로 둔다.
+- 기록 입력 피로도를 줄인다. 빠른 버튼, 텍스트 입력, 음성-텍스트 입력을 우선한다.
+- 자연어 파서의 신뢰도가 검증되기 전까지는 파싱된 기록을 저장하기 전에 사용자 확인을 받는다.
+- MVP에서는 서버 AI를 사용하지 않는다. OS 음성 인식과 앱 내부 룰 기반 파서를 먼저 사용한다.
+- 아기 사진, 건강 관련 기록, 가족 구성원 정보는 민감한 비공개 데이터로 취급한다.
+- 핵심 기록 루프가 검증되기 전에는 커뮤니티, 커머스, 예방접종 일정, 고급 AI 기능으로 확장하지 않는다.
 
-## Engineering Principles
+## 엔지니어링 원칙
 
-- Use TypeScript throughout the app.
-- Prefer Expo + React Native unless a native capability clearly requires a different setup.
-- Keep domain logic portable and testable outside React components.
-- Put natural-language parsing logic in a pure module with unit tests.
-- Start with a unified `baby_logs` model for timeline and analytics simplicity.
-- Keep storage and backend decisions explicit in docs before implementation.
+- 앱 전반에 TypeScript를 사용한다.
+- 명확한 네이티브 요구사항이 생기기 전까지는 Expo + React Native를 우선한다.
+- 도메인 로직은 React 컴포넌트 밖에서도 테스트할 수 있게 분리한다.
+- 자연어 파싱 로직은 순수 모듈로 만들고 단위 테스트를 작성한다.
+- 타임라인과 분석을 단순하게 유지하기 위해 MVP에서는 통합 `baby_logs` 모델로 시작한다.
+- 저장소, 백엔드, 데이터 모델 결정은 구현 전에 문서로 남긴다.
 
-## Documentation Rules
+## 문서 관리 규칙
 
-- Update `docs/product/mvp-scope.md` when product scope changes.
-- Update `docs/architecture/decisions.md` when choosing a technology, data model, or irreversible implementation direction.
-- Update `docs/engineering/project-setup.md` when setup commands or environment assumptions change.
-- Keep documents concise and decision-oriented. Do not duplicate the full product brief unless needed.
+- 프로젝트 문서와 에이전트 응답은 기본적으로 한국어로 작성한다.
+- 코드 식별자, 파일명, 명령어, 외부 API 명칭, 타입 이름은 원문 영어를 유지한다.
+- 한국어로 작성하되 기술적 의미가 흐려지는 번역은 피하고, 필요한 경우 영어 용어를 괄호로 함께 적는다.
+- 제품 범위가 바뀌면 `docs/product/mvp-scope.md`를 업데이트한다.
+- 기술 선택, 데이터 모델, 되돌리기 어려운 구현 방향을 정하면 `docs/architecture/decisions.md`를 업데이트한다.
+- 세팅 명령어나 환경 전제가 바뀌면 `docs/engineering/project-setup.md`를 업데이트한다.
+- 문서는 짧고 결정 중심으로 작성한다. 필요하지 않으면 원본 제품 브리프 전체를 중복하지 않는다.
 
-## Current Priorities
+## Git 규칙
 
-1. Set up the React Native TypeScript project.
-2. Define the MVP domain model and parser module.
-3. Implement quick logging and natural-language logging before media features.
-4. Add summaries and basic rule-based insights after reliable logging exists.
-5. Add photo upload after the core record/timeline loop works.
+- 커밋 메시지는 한국어로 작성한다.
+- 커밋 메시지 형식은 `type: 요약`을 사용한다.
+- `type`은 `docs`, `feat`, `fix`, `refactor`, `test`, `chore` 중 하나를 우선 사용한다.
+- 요약은 변경 내용을 짧고 구체적으로 설명한다.
+- 한 커밋에는 하나의 목적만 담는다.
+- 예시: `docs: 프로젝트 문서를 한국어로 변환`
+- 예시: `feat: 자연어 기록 파서 초안 추가`
+- 예시: `fix: 수유량 파싱 오류 수정`
 
-## Non-Goals For MVP
+## 현재 우선순위
 
-- Server-side LLM parsing.
-- AI-generated video.
-- Public sharing or social feed.
-- Marketplace, shopping, or community features.
-- Complex role hierarchy beyond `parent` and `family`.
+1. React Native TypeScript 프로젝트를 세팅한다.
+2. MVP 도메인 모델과 자연어 파서 모듈을 정의한다.
+3. 미디어 기능보다 빠른 기록과 자연어 기록을 먼저 구현한다.
+4. 기록 흐름이 안정된 뒤 오늘 요약과 룰 기반 인사이트를 추가한다.
+5. 핵심 기록/타임라인 루프가 동작한 뒤 사진 업로드를 추가한다.
 
+## MVP 비목표
+
+- 서버 사이드 LLM 파싱.
+- AI 영상 생성.
+- 공개 공유 또는 소셜 피드.
+- 마켓플레이스, 쇼핑, 커뮤니티 기능.
+- `parent`, `family`를 넘어서는 복잡한 권한 체계.

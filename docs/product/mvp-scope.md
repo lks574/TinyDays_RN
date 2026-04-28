@@ -1,34 +1,34 @@
-# MVP Scope
+# MVP 범위
 
-## Goal
+## 목표
 
-Build a mobile app that parents can use every day to record baby care events quickly and review the baby's day through a timeline and summary.
+부모가 매일 빠르게 아기 돌봄 이벤트를 기록하고, 타임라인과 오늘 요약으로 하루 상태를 확인할 수 있는 모바일 앱을 만든다.
 
-## Required Features
+## 필수 기능
 
-- Sign up and log in.
-- Create a family.
-- Invite family members.
-- Register one or more babies.
-- Record baby events with quick buttons.
-- Record baby events with natural-language text.
-- Record baby events with in-app voice input converted to text.
-- Confirm parsed voice/text records before saving.
-- Support feeding, sleep, diaper, vitamin, medicine, temperature, bath, and memo records.
-- Show a date-based timeline.
-- Show today's summary.
-- Show basic pattern analysis.
-- Upload photos.
+- 회원가입 및 로그인.
+- 가족 생성.
+- 가족 구성원 초대.
+- 한 명 이상의 아기 등록.
+- 빠른 버튼으로 아기 이벤트 기록.
+- 자연어 텍스트로 아기 이벤트 기록.
+- 앱 내 음성 입력을 텍스트로 변환해 기록.
+- 음성/텍스트 파싱 결과를 저장 전 확인.
+- 수유, 수면, 기저귀, 비타민, 약, 체온, 목욕, 메모 기록 지원.
+- 날짜 기준 타임라인 표시.
+- 오늘 요약 표시.
+- 기본 패턴 분석 표시.
+- 사진 업로드.
 
-## Optional MVP Features
+## 선택 기능
 
-- Generated slideshow videos.
-- Comments and reactions.
-- Siri Shortcuts or App Intents.
-- Vaccination schedules.
-- React Web family dashboard.
+- 사진 기반 슬라이드쇼 영상 생성.
+- 댓글과 반응.
+- Siri Shortcuts 또는 App Intents.
+- 예방접종 일정.
+- React Web 가족 대시보드.
 
-## Initial Record Types
+## 초기 기록 타입
 
 ```ts
 export type BabyLogType =
@@ -45,28 +45,28 @@ export type BabyLogType =
   | "unknown";
 ```
 
-## Initial App Tabs
+## 초기 앱 탭
 
-- Home: baby profile, D+ label, today summary, last status, quick buttons, voice/text entry, recent timeline.
-- Logs: date selector, chronological records, edit/delete, filters.
-- Insights: feeding, sleep, diaper patterns, recent seven-day summary, next expected actions.
-- Photos: date-based photo timeline, upload entry point, later video creation.
-- Family: members, invite link/code, role display, member removal.
+- 홈: 아기 프로필, D+ 표시, 오늘 요약, 마지막 상태, 빠른 버튼, 음성/텍스트 입력, 최근 타임라인.
+- 기록: 날짜 선택, 시간순 기록, 수정/삭제, 필터.
+- 인사이트: 수유, 수면, 기저귀 패턴, 최근 7일 요약, 다음 예상 행동.
+- 사진: 날짜별 사진 타임라인, 업로드 진입점, 이후 영상 만들기.
+- 가족: 구성원 목록, 초대 링크/코드, 권한 표시, 구성원 제거.
 
-## MVP Success Criteria
+## MVP 성공 기준
 
-- A parent records at least three events per day.
-- Feeding, sleep, and diaper records continue for at least seven days.
-- Today summary is checked at least once per day.
-- Photos are uploaded at least three times per week.
-- At least one family member views the shared feed or timeline.
+- 부모가 하루 3회 이상 기록한다.
+- 수유, 수면, 기저귀 기록이 7일 이상 지속된다.
+- 오늘 요약을 하루 1회 이상 확인한다.
+- 사진이 주 3회 이상 업로드된다.
+- 가족 구성원 1명 이상이 공유 피드 또는 타임라인을 확인한다.
 
-## Explicit Non-Goals
+## 명시적 비목표
 
-- Server-side LLM parsing.
-- Fully automatic saving of low-confidence parsed records.
-- Public sharing.
-- AI-generated video.
-- Advanced analytics or machine-learning prediction.
-- Complex permissions beyond `parent` and `family`.
+- 서버 사이드 LLM 파싱.
+- 낮은 신뢰도의 파싱 결과를 완전 자동 저장.
+- 공개 공유.
+- AI 영상 생성.
+- 고급 분석 또는 머신러닝 예측.
+- `parent`, `family`를 넘어서는 복잡한 권한 체계.
 

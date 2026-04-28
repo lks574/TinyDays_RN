@@ -1,55 +1,55 @@
-# Architecture Decisions
+# 아키텍처 결정 기록
 
-This file records product and engineering decisions that should guide implementation. Add new entries when a decision affects project structure, data modeling, backend design, or platform direction.
+이 문서는 구현 방향을 좌우하는 제품 및 엔지니어링 결정을 기록합니다. 프로젝트 구조, 데이터 모델, 백엔드 설계, 플랫폼 방향에 영향을 주는 결정을 내릴 때 새 항목을 추가합니다.
 
-## ADR-001: Mobile First With React Native
+## ADR-001: React Native 모바일 우선
 
-Status: Accepted
+상태: 채택
 
-The first product surface is a React Native mobile app. Baby care records are created in real time, usually on a phone, and mobile capabilities such as speech recognition, camera access, image upload, notifications, and future Siri integration are central to the product.
+첫 번째 제품 표면은 React Native 모바일 앱입니다. 아기 돌봄 기록은 실시간으로 발생하며 보통 휴대폰에서 입력됩니다. 음성 인식, 카메라 접근, 이미지 업로드, 알림, 향후 Siri 연동 같은 모바일 기능이 제품의 중심입니다.
 
-React Web remains a later dashboard for family viewing and management.
+React Web은 이후 가족 조회와 관리에 적합한 대시보드로 둡니다.
 
-## ADR-002: Prefer Expo For Initial Setup
+## ADR-002: 초기 세팅은 Expo 우선
 
-Status: Proposed
+상태: 제안
 
-Use Expo with TypeScript for the initial mobile app unless a required native capability forces Expo Dev Client or Bare React Native.
+필수 네이티브 기능이 Expo Dev Client 또는 Bare React Native를 요구하기 전까지는 Expo + TypeScript로 모바일 앱을 시작합니다.
 
-Rationale:
+근거:
 
-- Faster MVP setup.
-- Built-in support for iOS, Android, and web experimentation.
-- Easier asset, permission, and build workflows.
-- Compatible path toward Dev Client if native modules become necessary.
+- MVP 세팅 속도가 빠릅니다.
+- iOS, Android, 웹 실험을 한 구조에서 시작할 수 있습니다.
+- 에셋, 권한, 빌드 흐름이 단순합니다.
+- 이후 네이티브 모듈이 필요해지면 Dev Client로 확장할 수 있습니다.
 
-## ADR-003: Supabase As Initial Backend Candidate
+## ADR-003: 초기 백엔드 후보는 Supabase
 
-Status: Proposed
+상태: 제안
 
-Supabase is the initial backend candidate for auth, PostgreSQL, storage, Row Level Security, and edge functions.
+인증, PostgreSQL, Storage, Row Level Security, Edge Functions를 위해 Supabase를 초기 백엔드 후보로 둡니다.
 
-Rationale:
+근거:
 
-- Fast MVP development.
-- PostgreSQL is suitable for family-scoped data and timeline queries.
-- Storage can support photos and later generated videos.
-- RLS maps well to `family_members`-based access control.
+- MVP 개발 속도가 빠릅니다.
+- PostgreSQL은 가족 단위 데이터와 타임라인 쿼리에 적합합니다.
+- Storage로 사진과 이후 생성 영상을 관리할 수 있습니다.
+- RLS는 `family_members` 기반 접근 제어와 잘 맞습니다.
 
-## ADR-004: Unified Baby Log Table For MVP
+## ADR-004: MVP에서는 통합 Baby Log 테이블 사용
 
-Status: Accepted
+상태: 채택
 
-Use one `baby_logs` table for MVP instead of separate tables for feeding, sleep, diaper, medicine, and other records.
+MVP에서는 수유, 수면, 기저귀, 약 등 기록별 테이블을 분리하지 않고 하나의 `baby_logs` 테이블로 시작합니다.
 
-Rationale:
+근거:
 
-- Timeline rendering is simpler.
-- Natural-language parser output can be stored uniformly.
-- Analysis can start from chronological records.
-- Schema complexity stays low while the product is being validated.
+- 타임라인 렌더링이 단순합니다.
+- 자연어 파서 결과를 균일하게 저장할 수 있습니다.
+- 시간순 기록을 기반으로 분석을 시작하기 쉽습니다.
+- 제품 검증 단계에서 스키마 복잡도를 낮출 수 있습니다.
 
-Initial fields:
+초기 필드:
 
 ```txt
 id
@@ -68,29 +68,29 @@ created_at
 updated_at
 ```
 
-## ADR-005: Rule-Based Parser Before Server AI
+## ADR-005: 서버 AI보다 룰 기반 파서를 먼저 사용
 
-Status: Accepted
+상태: 채택
 
-MVP should use an in-app rule-based natural-language parser instead of server-side AI.
+MVP에서는 서버 사이드 AI 대신 앱 내부 룰 기반 자연어 파서를 사용합니다.
 
-Rationale:
+근거:
 
-- Lower cost.
-- Better privacy posture.
-- Faster iteration for common Korean baby-care phrases.
-- The initial phrase set is constrained enough for deterministic parsing.
+- 비용이 낮습니다.
+- 개인정보 보호 측면에서 유리합니다.
+- 한국어 육아 기록의 자주 쓰는 표현을 빠르게 개선할 수 있습니다.
+- 초기 문장 집합은 결정적 파싱으로 충분히 다룰 수 있습니다.
 
-Parsed records should be confirmed by the user before saving, especially for voice input or lower-confidence results.
+특히 음성 입력이나 낮은 confidence 결과는 저장 전에 사용자 확인을 받아야 합니다.
 
-## ADR-006: Family-Scoped Privacy Model
+## ADR-006: 가족 단위 개인정보 모델
 
-Status: Accepted
+상태: 채택
 
-Baby records, photos, videos, and comments must be scoped by `family_id`. Users access baby data through family membership.
+아기 기록, 사진, 영상, 댓글은 모두 `family_id`로 범위를 제한합니다. 사용자는 가족 구성원 자격을 통해 아기 데이터에 접근합니다.
 
-Initial roles:
+초기 역할:
 
-- `parent`: can create, edit, upload, invite, and manage baby profile data.
-- `family`: can view timelines/photos/videos and later comment or react.
+- `parent`: 기록 생성/수정, 사진 업로드, 초대, 아기 프로필 관리 가능.
+- `family`: 타임라인, 사진, 영상 조회 가능. 이후 댓글 또는 반응 가능.
 
