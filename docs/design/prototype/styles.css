@@ -1,0 +1,93 @@
+/* TinyDays — design tokens */
+
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+:root {
+  /* type */
+  --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+    'Helvetica Neue', Arial, sans-serif;
+  --font-num: 'Pretendard', 'SF Pro Text', -apple-system, system-ui, sans-serif;
+
+  /* surfaces — subtly warm neutral */
+  --bg: #faf8f5;
+  --bg-2: #f3efe9;
+  --surface: #ffffff;
+  --surface-sunk: #f7f4ef;
+
+  /* ink */
+  --ink: #1a1816;
+  --ink-2: #3d3935;
+  --ink-3: #6b6660;
+  --ink-4: #9a948d;
+  --ink-5: #cfc9c1;
+  --line: #ebe6dd;
+  --line-2: #ddd6cb;
+
+  /* accent — single muted moss/sage for primary actions */
+  --accent: #5b7058;
+  --accent-soft: #e7eee3;
+  --accent-ink: #2f3d2c;
+
+  /* state colors — used as small dots, not as full backgrounds */
+  --c-feed: #b58a4a;        /* ochre — 수유 */
+  --c-feed-soft: #f4ead8;
+  --c-sleep: #6b7a9a;       /* dusk blue — 수면 */
+  --c-sleep-soft: #e6e9f1;
+  --c-diaper: #8a7257;      /* warm brown — 기저귀 */
+  --c-diaper-soft: #ede5db;
+  --c-temp: #b9624c;        /* terracotta — 체온 */
+  --c-temp-soft: #f4dfd6;
+  --c-bath: #5a8a8a;        /* teal — 목욕 */
+  --c-bath-soft: #dde9e9;
+  --c-note: #7a6f8c;        /* muted lilac — 메모 */
+  --c-note-soft: #e8e4ee;
+  --c-vit:  #9a8540;        /* mustard — 비타민 */
+  --c-vit-soft: #efe9d4;
+  --c-med:  #a5556a;        /* dusty rose — 약 */
+  --c-med-soft: #f1dee2;
+
+  /* radius scale */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+  --r-pill: 99px;
+
+  /* space scale (used in inline styles via the same numeric values) */
+  --s-1: 4px;
+  --s-2: 6px;
+  --s-3: 8px;
+  --s-4: 12px;
+  --s-5: 16px;
+  --s-6: 20px;
+  --s-7: 24px;
+  --s-8: 32px;
+
+  /* elevation */
+  --shadow-1: 0 1px 2px rgba(26,24,22,0.04);
+  --shadow-2: 0 4px 12px rgba(26,24,22,0.06);
+  --shadow-3: 0 12px 32px rgba(26,24,22,0.08);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  color: var(--ink);
+}
+
+button {
+  font-family: inherit;
+  font-feature-settings: "tnum" 1;
+}
+
+/* hide scrollbars inside phone screens */
+.td-screen::-webkit-scrollbar { display: none; }
+.td-screen { scrollbar-width: none; }
+
+/* small tabular number helper */
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }

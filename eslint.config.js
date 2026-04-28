@@ -7,6 +7,7 @@ module.exports = defineConfig([
     ignores: [
       "coverage/",
       "dist/",
+      "docs/design/prototype/",
       "node_modules/",
       "tmp/",
       "web-build/",
