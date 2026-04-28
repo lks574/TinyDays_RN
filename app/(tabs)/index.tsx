@@ -4,16 +4,22 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BabyLog, BabyLogType } from '../../src/domain/baby-logs';
+import { parseBabyLogText } from '../../src/domain/parser';
 import {
+  createEditableParsedLog,
   createQuickLogCandidate,
+  createTextLogCandidate,
+  type EditableParsedLog,
   getLastSleepLogType,
   QUICK_LOG_ACTIONS,
   sortLogsByRecent,
+  TEXT_LOG_TYPE_OPTIONS,
   type QuickLogActionId,
 } from '../../src/features/logging';
 import { APP_NAME } from '../../src/shared/app-info';
@@ -21,6 +27,9 @@ import { theme } from '../../src/shared/ui/theme';
 
 export default function HomeScreen() {
   const [logs, setLogs] = useState<BabyLog[]>([]);
+  const [textInput, setTextInput] = useState('');
+  const [parseError, setParseError] = useState('');
+  const [pendingLog, setPendingLog] = useState<EditableParsedLog | null>(null);
 
   const recentLogs = useMemo(() => sortLogsByRecent(logs).slice(0, 5), [logs]);
 
@@ -36,6 +45,57 @@ export default function HomeScreen() {
 
       return sortLogsByRecent([nextLog, ...currentLogs]);
     });
+  }
+
+  function handleParseText() {
+    const trimmedText = textInput.trim();
+
+    if (trimmedText.length === 0) {
+      setParseError('기록할 내용을 입력해 주세요.');
+      return;
+    }
+
+    const parsedResult = parseBabyLogText(trimmedText, {
+      now: new Date().toISOString(),
+    });
+
+    setPendingLog(createEditableParsedLog(parsedResult.parsedLog));
+    setParseError('');
+  }
+
+  function handlePendingLogChange(nextFields: Partial<EditableParsedLog>) {
+    setPendingLog((currentPendingLog) =>
+      currentPendingLog === null
+        ? null
+        : {
+            ...currentPendingLog,
+            ...nextFields,
+          },
+    );
+  }
+
+  function handleSavePendingLog() {
+    if (pendingLog === null) {
+      return;
+    }
+
+    setLogs((currentLogs) => {
+      const now = new Date().toISOString();
+      const nextLog = createTextLogCandidate({
+        parsedLog: pendingLog,
+        now,
+        sequence: currentLogs.length + 1,
+      });
+
+      return sortLogsByRecent([nextLog, ...currentLogs]);
+    });
+    setPendingLog(null);
+    setTextInput('');
+    setParseError('');
+  }
+
+  function handleCancelPendingLog() {
+    setPendingLog(null);
   }
 
   return (
@@ -66,6 +126,137 @@ export default function HomeScreen() {
             <Text style={styles.summaryLabel}>마지막 기록</Text>
           </View>
         </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>텍스트 기록</Text>
+          <View style={styles.textLogPanel}>
+            <TextInput
+              multiline
+              value={textInput}
+              placeholder="예: 분유 120ml 먹었어"
+              placeholderTextColor={theme.colors.muted}
+              style={styles.textLogInput}
+              textAlignVertical="top"
+              onChangeText={(nextText) => {
+                setTextInput(nextText);
+                setParseError('');
+              }}
+            />
+            {parseError.length > 0 ? (
+              <Text style={styles.errorText}>{parseError}</Text>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.primaryButtonPressed,
+              ]}
+              onPress={handleParseText}
+            >
+              <Text style={styles.primaryButtonText}>파싱하기</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {pendingLog === null ? null : (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>파싱 결과 확인</Text>
+            <View style={styles.confirmPanel}>
+              <View style={styles.confirmHeader}>
+                <Text style={styles.confirmTitle}>
+                  {getLogTypeLabel(pendingLog.log_type)}
+                </Text>
+                <Text style={styles.confidenceText}>
+                  신뢰도 {formatConfidence(pendingLog.confidence)}
+                </Text>
+              </View>
+              <Text style={styles.originalText}>{pendingLog.original_text}</Text>
+
+              <View style={styles.typeGrid}>
+                {TEXT_LOG_TYPE_OPTIONS.map((logType) => (
+                  <Pressable
+                    key={logType}
+                    accessibilityRole="button"
+                    style={[
+                      styles.typeButton,
+                      pendingLog.log_type === logType && styles.typeButtonActive,
+                    ]}
+                    onPress={() => handlePendingLogChange({ log_type: logType })}
+                  >
+                    <Text
+                      style={[
+                        styles.typeButtonText,
+                        pendingLog.log_type === logType &&
+                          styles.typeButtonTextActive,
+                      ]}
+                    >
+                      {getLogTypeLabel(logType)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={styles.editRow}>
+                <View style={styles.editField}>
+                  <Text style={styles.inputLabel}>수치</Text>
+                  <TextInput
+                    value={pendingLog.amountText}
+                    keyboardType="decimal-pad"
+                    placeholder="120"
+                    placeholderTextColor={theme.colors.muted}
+                    style={styles.singleLineInput}
+                    onChangeText={(amountText) =>
+                      handlePendingLogChange({ amountText })
+                    }
+                  />
+                </View>
+                <View style={styles.editField}>
+                  <Text style={styles.inputLabel}>단위</Text>
+                  <TextInput
+                    value={pendingLog.unit}
+                    placeholder="ml"
+                    placeholderTextColor={theme.colors.muted}
+                    style={styles.singleLineInput}
+                    onChangeText={(unit) => handlePendingLogChange({ unit })}
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.inputLabel}>메모</Text>
+              <TextInput
+                value={pendingLog.memo}
+                placeholder="메모를 추가하세요"
+                placeholderTextColor={theme.colors.muted}
+                style={styles.memoInput}
+                onChangeText={(memo) => handlePendingLogChange({ memo })}
+              />
+
+              <View style={styles.confirmActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    pressed && styles.secondaryButtonPressed,
+                  ]}
+                  onPress={handleCancelPendingLog}
+                >
+                  <Text style={styles.secondaryButtonText}>취소</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    styles.confirmSaveButton,
+                    pressed && styles.primaryButtonPressed,
+                  ]}
+                  onPress={handleSavePendingLog}
+                >
+                  <Text style={styles.primaryButtonText}>저장</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>빠른 기록</Text>
@@ -108,6 +299,9 @@ export default function HomeScreen() {
                       {formatLogTime(log.recorded_at)}
                       {formatLogValue(log)}
                     </Text>
+                    {log.memo === null ? null : (
+                      <Text style={styles.timelineMemo}>{log.memo}</Text>
+                    )}
                   </View>
                 </View>
               ))}
@@ -159,6 +353,10 @@ function formatLogValue(log: BabyLog): string {
   }
 
   return ` · ${log.amount}${log.unit}`;
+}
+
+function formatConfidence(confidence: number): string {
+  return `${Math.round(confidence * 100)}%`;
 }
 
 const styles = StyleSheet.create({
@@ -241,6 +439,168 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: 18,
     fontWeight: '800',
+  },
+  textLogPanel: {
+    marginTop: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    padding: 14,
+  },
+  textLogInput: {
+    minHeight: 74,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
+    color: theme.colors.text,
+    fontSize: 16,
+    lineHeight: 22,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  errorText: {
+    marginTop: 8,
+    color: '#B42318',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  primaryButton: {
+    marginTop: 12,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 16,
+  },
+  primaryButtonPressed: {
+    opacity: 0.82,
+  },
+  primaryButtonText: {
+    color: theme.colors.surface,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  confirmPanel: {
+    marginTop: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.surface,
+    padding: 14,
+  },
+  confirmHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  confirmTitle: {
+    color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  confidenceText: {
+    color: theme.colors.primary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  originalText: {
+    marginTop: 8,
+    color: theme.colors.muted,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  typeGrid: {
+    marginTop: 14,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  typeButton: {
+    minHeight: 38,
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  typeButtonActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: '#EDF6F1',
+  },
+  typeButtonText: {
+    color: theme.colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  typeButtonTextActive: {
+    color: theme.colors.primary,
+  },
+  editRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  editField: {
+    flex: 1,
+  },
+  inputLabel: {
+    marginBottom: 6,
+    color: theme.colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  singleLineInput: {
+    minHeight: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
+    color: theme.colors.text,
+    fontSize: 15,
+    paddingHorizontal: 12,
+  },
+  memoInput: {
+    minHeight: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
+    color: theme.colors.text,
+    fontSize: 15,
+    paddingHorizontal: 12,
+  },
+  confirmActions: {
+    marginTop: 14,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  secondaryButton: {
+    minHeight: 46,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 16,
+  },
+  secondaryButtonPressed: {
+    backgroundColor: theme.colors.background,
+  },
+  secondaryButtonText: {
+    color: theme.colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  confirmSaveButton: {
+    flex: 1,
+    marginTop: 0,
   },
   quickGrid: {
     marginTop: 12,
@@ -325,5 +685,11 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     fontSize: 13,
     fontWeight: '600',
+  },
+  timelineMemo: {
+    marginTop: 3,
+    color: theme.colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
