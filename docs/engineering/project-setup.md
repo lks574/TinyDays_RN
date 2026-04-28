@@ -2,7 +2,7 @@
 
 ## 현재 저장소 상태
 
-Git 저장소가 초기화되었고 프로젝트 계획 문서가 추가되었습니다. React Native 앱은 아직 스캐폴딩하지 않았습니다.
+Expo + React Native + TypeScript 앱이 저장소 루트에 스캐폴딩되었습니다. 현재 앱은 PR-01 기준의 기본 진입점만 제공하며, 탭 구조와 실제 기록 기능은 이후 PR에서 추가합니다.
 
 ## 권장 기준
 
@@ -14,23 +14,58 @@ Git 저장소가 초기화되었고 프로젝트 계획 문서가 추가되었�
 
 ## Node 버전
 
-초기 세팅 중 확인한 현재 로컬 Node 버전은 다음과 같습니다.
+프로젝트 기준 Node 버전은 `.nvmrc`에 정의합니다.
 
 ```txt
-v25.8.0
+22
 ```
 
-React Native와 Expo 프로젝트는 일반적으로 활성 LTS Node 버전에서 더 안전합니다. 앱을 스캐폴딩하기 전에 프로젝트 단위 Node 버전 파일을 추가하고, 선택한 Expo 버전이 달리 요구하지 않는 한 Node 22 같은 LTS 버전을 사용하는 것이 좋습니다.
+현재 로컬 환경에서 확인된 Node 버전은 `v25.8.0`이지만, Expo와 React Native 호환성을 위해 개발 시 Node 22 LTS 사용을 권장합니다.
+
+## 설치와 실행
+
+의존성 설치:
+
+```sh
+npm install
+```
+
+Expo 개발 서버 실행:
+
+```sh
+npm start
+```
+
+플랫폼별 실행:
+
+```sh
+npm run ios
+npm run android
+npm run web
+```
+
+## 현재 검증 명령
+
+```sh
+npm run lint
+npm run typecheck
+npm test
+```
+
+## 완료된 세팅
+
+- Node 버전 파일 `.nvmrc`를 추가했다.
+- Expo + React Native + TypeScript 앱을 스캐폴딩했다.
+- `lint`, `typecheck`, `test` 스크립트를 추가했다.
+- Jest 기반 테스트 실행 기반을 추가했다.
 
 ## 예정된 세팅 단계
 
-1. Node 버전 파일을 추가한다.
-2. 이 저장소에 Expo TypeScript 앱을 스캐폴딩한다.
-3. 린트와 포매팅을 추가한다.
-4. 경로 alias를 추가한다.
-5. 순수 TypeScript 모듈을 위한 테스트 도구를 추가한다.
-6. 아기 기록과 자연어 파서 초기 도메인 모듈을 만든다.
-7. 앱 구조와 도메인 경계가 명확해진 뒤 Supabase를 추가한다.
+1. PR-02에서 탭/내비게이션 구조를 추가한다.
+2. 필요한 시점에 포매팅 기준을 추가한다.
+3. 경로 alias를 추가한다.
+4. 아기 기록과 자연어 파서 초기 도메인 모듈을 만든다.
+5. 앱 구조와 도메인 경계가 명확해진 뒤 Supabase를 추가한다.
 
 ## 초기 도메인 모듈
 
@@ -54,6 +89,3 @@ npm run lint
 npm run typecheck
 npm test
 ```
-
-정확한 명령어는 도구 설치 이후 바뀔 수 있습니다. 스크립트를 추가하거나 이름을 바꾸면 이 문서를 함께 업데이트합니다.
-
