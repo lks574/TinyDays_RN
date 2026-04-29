@@ -4,7 +4,10 @@ import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BabyLog } from '../../src/domain/baby-logs';
-import { createWeeklyInsights } from '../../src/domain/insights';
+import {
+  createDailyInsightBars,
+  createWeeklyInsights,
+} from '../../src/domain/insights';
 import { localBabyLogRepository } from '../../src/features/logging';
 import { theme } from '../../src/shared/ui/theme';
 
@@ -195,95 +198,6 @@ function InsightCard({
       </View>
     </View>
   );
-}
-
-function createDailyInsightBars(logs: readonly BabyLog[], now: string) {
-  const days = createRecentDateKeys(now);
-  const feed = days.map((day) =>
-    logs.filter((log) => getDateKey(log.recorded_at) === day.key).filter(
-      (log) => log.log_type === 'feeding',
-    ).length,
-  );
-  const diaper = days.map((day) =>
-    logs.filter((log) => getDateKey(log.recorded_at) === day.key).filter(
-      (log) => log.log_type === 'diaper_pee' || log.log_type === 'diaper_poop',
-    ).length,
-  );
-  const sleep = days.map((day) =>
-    sumCompletedSleepMinutes(
-      logs
-        .filter((log) => getDateKey(log.recorded_at) === day.key)
-        .sort(
-          (left, right) =>
-            new Date(left.recorded_at).getTime() -
-            new Date(right.recorded_at).getTime(),
-        ),
-    ),
-  );
-
-  return {
-    days: days.map((day) => day.weekday),
-    feed,
-    sleep,
-    diaper,
-  };
-}
-
-function createRecentDateKeys(now: string) {
-  const nowDate = new Date(now);
-  const end = new Date(
-    nowDate.getFullYear(),
-    nowDate.getMonth(),
-    nowDate.getDate(),
-  );
-
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(end);
-    date.setDate(end.getDate() - (6 - index));
-    const key = getDateKey(date.toISOString());
-    const weekday = new Intl.DateTimeFormat('ko-KR', {
-      weekday: 'short',
-    }).format(date);
-
-    return { key, weekday };
-  });
-}
-
-function sumCompletedSleepMinutes(logs: readonly BabyLog[]): number {
-  let lastSleepStart: BabyLog | null = null;
-  let totalMinutes = 0;
-
-  logs.forEach((log) => {
-    if (log.log_type === 'sleep_start') {
-      lastSleepStart = log;
-      return;
-    }
-
-    if (log.log_type !== 'sleep_end' || lastSleepStart === null) {
-      return;
-    }
-
-    totalMinutes += Math.max(
-      0,
-      Math.round(
-        (new Date(log.recorded_at).getTime() -
-          new Date(lastSleepStart.recorded_at).getTime()) /
-          60000,
-      ),
-    );
-    lastSleepStart = null;
-  });
-
-  return totalMinutes;
-}
-
-function getDateKey(recordedAt: string): string {
-  const date = new Date(recordedAt);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
 }
 
 function formatDateKey(dateKey: string): string {

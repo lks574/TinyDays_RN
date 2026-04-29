@@ -10,3 +10,8 @@ export {
   type NextActionKind,
   type WeeklyInsights,
 } from "./weekly-insights";
+
+export {
+  createDailyInsightBars,
+  type DailyInsightBars,
+} from "./daily-insight-bars";
