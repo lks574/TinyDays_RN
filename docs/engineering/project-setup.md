@@ -14,6 +14,7 @@ Expo + React Native + TypeScript 앱이 저장소 루트에 스캐폴딩되었�
 - PR-12 사진 업로드 진입은 `expo-image-picker`와 `AsyncStorage` 로컬 사진 메타데이터로 시작한다.
 - 최종 백엔드 지향점은 Expo SQLite, Supabase, Cloudflare R2 조합으로 둔다.
 - PR-13 Supabase 백엔드 초안은 앱 동작을 바꾸지 않고 `supabase/` migration과 RLS 정책만 추가한다.
+- PR-14 Supabase Auth 연결은 앱에 Supabase client와 session 계층을 추가하되 기존 로컬 저장 흐름을 유지한다.
 - 자연어 파서 같은 도메인 로직은 단위 테스트 작성.
 
 ## 확정 기술 스택
@@ -30,6 +31,8 @@ PR-01 기준으로 아래 기술과 버전을 사용합니다.
 | UI 런타임 | React Native | `0.81.5` |
 | UI 라이브러리 | React | `19.1.0` |
 | 로컬 저장소 | `@react-native-async-storage/async-storage` | `2.2.0` |
+| Supabase client | `@supabase/supabase-js` | `^2.105.1` |
+| React Native URL polyfill | `react-native-url-polyfill` | `^3.0.0` |
 | 최종 로컬 DB 후보 | Expo SQLite | 도입 시점에 확정 |
 | 최종 서버 후보 | Supabase | 인증/동기화 PR에서 확정 |
 | 최종 미디어 저장소 후보 | Cloudflare R2 | 미디어 원격 저장 PR에서 확정 |
@@ -109,6 +112,19 @@ PR-13의 migration은 다음 범위만 다룬다.
 
 PR-13에서는 앱 로그인 UI, `@supabase/supabase-js`, Expo SQLite 이전, R2 signed URL 발급을 구현하지 않는다.
 
+## Supabase Auth 앱 설정
+
+PR-14 기준으로 앱은 Expo public env를 사용해 Supabase Auth client를 구성한다.
+
+```sh
+EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+EXPO_PUBLIC_SUPABASE_ANON_KEY=replace-with-local-or-project-anon-key
+```
+
+`.env.example`에 예시 값을 둔다. 실제 프로젝트 anon key는 `.env`에만 둔다. Supabase service role key는 모바일 앱 환경 변수에 넣지 않는다.
+
+환경 변수가 없으면 가족 탭의 원격 계정 패널은 설정 필요 상태를 표시하고, 기존 `AsyncStorage` 기반 로컬 가족/기록/사진 흐름은 계속 동작한다.
+
 ## 완료된 세팅
 
 - Node 버전 파일 `.nvmrc`를 추가했다.
@@ -122,7 +138,7 @@ PR-13에서는 앱 로그인 UI, `@supabase/supabase-js`, Expo SQLite 이전, R2
 2. 경로 alias를 추가한다.
 3. 아기 기록과 자연어 파서 초기 도메인 모듈을 만든다.
 4. 기록 수정/삭제, 날짜별 조회, sync queue가 필요해지면 `baby_logs`부터 Expo SQLite로 이전한다.
-5. 인증, 가족 공유, 사진 또는 다중 기기 동기화가 필요해지면 PR-13의 Supabase schema/RLS를 기준으로 앱 연결과 R2 연동을 진행한다.
+5. 원격 가족 bootstrap이 필요해지면 PR-14의 Auth session 계층을 기준으로 `families`, `family_members`, `children` 생성을 연결한다.
 
 ## 초기 도메인 모듈
 

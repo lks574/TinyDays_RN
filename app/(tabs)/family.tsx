@@ -14,6 +14,7 @@ import {
   getSelectedChild,
   type FamilyContext,
 } from '../../src/domain/family';
+import { useSupabaseAuth } from '../../src/features/auth';
 import { localFamilyContextRepository } from '../../src/features/family';
 import {
   Badge,
@@ -32,6 +33,7 @@ import {
 import { theme } from '../../src/shared/ui/theme';
 
 export default function FamilyScreen() {
+  const auth = useSupabaseAuth();
   const [familyContext, setFamilyContext] = useState<FamilyContext>(() =>
     createDefaultFamilyContext(new Date().toISOString()),
   );
@@ -145,6 +147,124 @@ export default function FamilyScreen() {
           trailing={<Badge tone="accent">비공개</Badge>}
           style={styles.header}
         />
+
+        <Section
+          label="원격 계정"
+          action={
+            <Badge tone={auth.session === null ? 'soft' : 'accent'}>
+              {auth.session === null ? '로컬' : '연결됨'}
+            </Badge>
+          }
+          flush
+        >
+          {auth.isConfigured ? (
+            auth.session === null ? (
+              <View style={styles.authPanel}>
+                <Stack gap={theme.spacing[3]}>
+                  <Body size="S" tone="ink3">
+                    Supabase 계정은 가족 공유와 클라우드 백업에 사용됩니다.
+                    로그인하지 않아도 로컬 기록은 계속 저장됩니다.
+                  </Body>
+                  <Field
+                    label="이메일"
+                    value={auth.email}
+                    placeholder="parent@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    onChangeText={auth.setEmail}
+                    compact
+                  />
+                  <Field
+                    label="비밀번호"
+                    value={auth.password}
+                    placeholder="비밀번호"
+                    secureTextEntry
+                    onChangeText={auth.setPassword}
+                    compact
+                    noBorder
+                  />
+                </Stack>
+                {auth.errorMessage.length > 0 ? (
+                  <Body size="S" tone="temp">
+                    {auth.errorMessage}
+                  </Body>
+                ) : null}
+                {auth.statusMessage.length > 0 ? (
+                  <Body size="S" tone="accent">
+                    {auth.statusMessage}
+                  </Body>
+                ) : null}
+                <View style={styles.authActions}>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    style={styles.authActionButton}
+                    disabled={auth.isLoading}
+                    onPress={auth.signIn}
+                  >
+                    로그인
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    style={styles.authActionButton}
+                    disabled={auth.isLoading}
+                    onPress={auth.signUp}
+                  >
+                    가입
+                  </Button>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.authPanel}>
+                <Stack gap={theme.spacing[2]}>
+                  <Heading size="S">
+                    {auth.session.user.email ?? '원격 계정'}
+                  </Heading>
+                  <Body size="S" tone="ink3">
+                    원격 계정 세션이 연결되어 있습니다. 아직 로컬 가족 정보와
+                    원격 가족 생성은 분리되어 있습니다.
+                  </Body>
+                </Stack>
+                {auth.errorMessage.length > 0 ? (
+                  <Body size="S" tone="temp">
+                    {auth.errorMessage}
+                  </Body>
+                ) : null}
+                {auth.statusMessage.length > 0 ? (
+                  <Body size="S" tone="accent">
+                    {auth.statusMessage}
+                  </Body>
+                ) : null}
+                <Button
+                  variant="secondary"
+                  size="md"
+                  full
+                  disabled={auth.isLoading}
+                  onPress={auth.signOut}
+                >
+                  로그아웃
+                </Button>
+              </View>
+            )
+          ) : (
+            <View style={styles.authPanel}>
+              <Body size="S" tone="ink3">
+                Supabase 환경 변수가 설정되지 않았습니다. 로컬 기록, 가족
+                정보, 사진 저장은 계속 사용할 수 있습니다.
+              </Body>
+              <Stack gap={theme.spacing[1]}>
+                {auth.config.status === 'missing_config'
+                  ? auth.config.missingKeys.map((key) => (
+                      <Mono key={key} tone="ink4">
+                        {key}
+                      </Mono>
+                    ))
+                  : null}
+              </Stack>
+            </View>
+          )}
+        </Section>
 
         <Section label="가족 정보" flush>
           <Field
@@ -325,6 +445,17 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingBottom: theme.spacing[5],
+  },
+  authPanel: {
+    gap: theme.spacing[4],
+    padding: theme.spacing[5],
+  },
+  authActions: {
+    flexDirection: 'row',
+    gap: theme.spacing[3],
+  },
+  authActionButton: {
+    flex: 1,
   },
   savePanel: {
     gap: theme.spacing[4],
