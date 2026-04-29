@@ -1,10 +1,8 @@
 import { useCallback, useState } from 'react';
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -17,6 +15,20 @@ import {
   type FamilyContext,
 } from '../../src/domain/family';
 import { localFamilyContextRepository } from '../../src/features/family';
+import {
+  Badge,
+  Body,
+  Button,
+  Caption,
+  Field,
+  Heading,
+  ListRow,
+  Mono,
+  ScreenHeader,
+  Section,
+  SectionLabel,
+  Stack,
+} from '../../src/shared/ui';
 import { theme } from '../../src/shared/ui/theme';
 
 export default function FamilyScreen() {
@@ -118,101 +130,143 @@ export default function FamilyScreen() {
   }
 
   const selectedChild = getSelectedChild(familyContext);
-  const dayCount = calculateDayCount(selectedChild.birth_date, new Date().toISOString());
+  const dayCount = calculateDayCount(
+    selectedChild.birth_date,
+    new Date().toISOString(),
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>가족</Text>
-          <Text style={styles.title}>{familyContext.family.name}</Text>
-          <Text style={styles.subtitle}>
-            기록은 현재 선택된 아기와 가족에 연결됩니다.
-          </Text>
-        </View>
+        <ScreenHeader
+          eyebrow="가족"
+          title="가족 설정"
+          sub={`${familyContext.family.name}의 기록 기준을 관리합니다.`}
+          trailing={<Badge tone="accent">비공개</Badge>}
+          style={styles.header}
+        />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>가족 정보</Text>
-          <View style={styles.formPanel}>
-            <Text style={styles.inputLabel}>가족 이름</Text>
-            <TextInput
-              value={familyName}
-              placeholder="우리 가족"
-              placeholderTextColor={theme.colors.muted}
-              style={styles.input}
-              onChangeText={setFamilyName}
-            />
-
-            <Text style={styles.inputLabel}>아기 이름</Text>
-            <TextInput
-              value={childName}
-              placeholder="하루"
-              placeholderTextColor={theme.colors.muted}
-              style={styles.input}
-              onChangeText={setChildName}
-            />
-
-            <Text style={styles.inputLabel}>생년월일</Text>
-            <TextInput
-              value={birthDate}
-              placeholder="2025-12-30"
-              placeholderTextColor={theme.colors.muted}
-              style={styles.input}
-              keyboardType="numbers-and-punctuation"
-              onChangeText={setBirthDate}
-            />
-
-            {errorMessage.length > 0 ? (
-              <Text style={styles.errorText}>{errorMessage}</Text>
-            ) : null}
-            {statusMessage.length > 0 ? (
-              <Text style={styles.statusText}>{statusMessage}</Text>
-            ) : null}
-
-            <Pressable
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && styles.primaryButtonPressed,
-              ]}
+        <Section label="가족 정보" flush>
+          <Field
+            label="가족 이름"
+            value={familyName}
+            placeholder="우리 가족"
+            onChangeText={setFamilyName}
+            noBorder
+          />
+          <View style={styles.savePanel}>
+            <Stack gap={theme.spacing[2]}>
+              {errorMessage.length > 0 ? (
+                <Body size="S" tone="temp">
+                  {errorMessage}
+                </Body>
+              ) : null}
+              {statusMessage.length > 0 ? (
+                <Body size="S" tone="accent">
+                  {statusMessage}
+                </Body>
+              ) : null}
+            </Stack>
+            <Button
+              variant="primary"
+              size="lg"
+              full
               onPress={handleSaveFamilyContext}
             >
-              <Text style={styles.primaryButtonText}>저장</Text>
-            </Pressable>
+              저장
+            </Button>
           </View>
-        </View>
+        </Section>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>등록된 아기</Text>
-          <View style={styles.infoCard}>
-            <Text style={styles.cardTitle}>{selectedChild.name}</Text>
-            <Text style={styles.cardMeta}>
-              {selectedChild.birth_date === null
-                ? '생년월일 미등록'
-                : `${selectedChild.birth_date} · ${formatDayCount(dayCount)}`}
-            </Text>
-            <Text style={styles.idText}>child_id: {selectedChild.id}</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>구성원과 권한</Text>
-          <View style={styles.infoCard}>
-            <View style={styles.memberRow}>
-              <View>
-                <Text style={styles.cardTitle}>
-                  {familyContext.current_member.name}
-                </Text>
-                <Text style={styles.cardMeta}>현재 사용자</Text>
-              </View>
-              <View style={styles.rolePill}>
-                <Text style={styles.roleText}>
-                  {getRoleLabel(familyContext.current_member.role)}
-                </Text>
-              </View>
+        <Section label="등록된 아기" flush>
+          <View style={styles.childSummary}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getInitial(selectedChild.name)}</Text>
             </View>
-            <Text style={styles.idText}>family_id: {familyContext.family.id}</Text>
+            <View style={styles.summaryText}>
+              <Heading size="S">{selectedChild.name}</Heading>
+              <Caption tone="ink3" style={styles.summaryMeta}>
+                {selectedChild.birth_date === null
+                  ? '생년월일 미등록'
+                  : selectedChild.birth_date}
+              </Caption>
+            </View>
+            <Badge tone={dayCount === null ? 'soft' : 'info'}>
+              {formatDayCount(dayCount)}
+            </Badge>
           </View>
+
+          <Field
+            label="아기 이름"
+            value={childName}
+            placeholder="하루"
+            onChangeText={setChildName}
+            compact
+          />
+          <Field
+            label="생년월일"
+            value={birthDate}
+            placeholder="2025-12-30"
+            keyboardType="numbers-and-punctuation"
+            onChangeText={setBirthDate}
+            compact
+            noBorder
+          />
+        </Section>
+
+        <View style={styles.sectionWrap}>
+          <SectionLabel action={<Mono tone="ink4">1명</Mono>}>구성원</SectionLabel>
+          <View style={styles.memberCard}>
+            <ListRow
+              leading={
+                <View style={styles.memberAvatar}>
+                  <Text style={styles.memberAvatarText}>
+                    {getInitial(familyContext.current_member.name)}
+                  </Text>
+                </View>
+              }
+              title={
+                <View style={styles.memberTitleRow}>
+                  <Text style={styles.memberName}>
+                    {familyContext.current_member.name}
+                  </Text>
+                  <Badge tone="soft">나</Badge>
+                </View>
+              }
+              sub="현재 사용자"
+              trailing={
+                <View style={styles.roleBadge}>
+                  <View
+                    style={[
+                      styles.roleDot,
+                      {
+                        backgroundColor: getRoleColor(
+                          familyContext.current_member.role,
+                        ),
+                      },
+                    ]}
+                  />
+                  <Text style={styles.roleText}>
+                    {getRoleLabel(familyContext.current_member.role)}
+                  </Text>
+                </View>
+              }
+              divider={false}
+            />
+          </View>
+        </View>
+
+        <View style={styles.metaPanel}>
+          <Caption tone="ink4">
+            TinyDays는 가족 단위 비공개 앱이에요. 가족 정보, 사진과 건강 기록은
+            외부에 공유되지 않아요.
+          </Caption>
+          <Mono tone="ink4" style={styles.idText}>
+            family_id: {familyContext.family.id}
+          </Mono>
+          <Mono tone="ink4" style={styles.idText}>
+            child_id: {selectedChild.id}
+          </Mono>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -244,141 +298,130 @@ function getRoleLabel(role: FamilyContext['current_member']['role']): string {
   }
 }
 
+function getRoleColor(role: FamilyContext['current_member']['role']): string {
+  switch (role) {
+    case 'parent':
+      return theme.colors.accent;
+    case 'family':
+      return theme.colors.vitamin;
+  }
+}
+
+function getInitial(value: string): string {
+  const trimmedValue = value.trim();
+
+  return trimmedValue.length > 0 ? trimmedValue.slice(0, 1) : '?';
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.bg,
   },
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 28,
+    paddingTop: theme.spacing[3],
     paddingBottom: 32,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.bg,
   },
   header: {
-    gap: 8,
+    paddingBottom: theme.spacing[5],
   },
-  eyebrow: {
-    color: theme.colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
+  savePanel: {
+    gap: theme.spacing[4],
+    paddingHorizontal: theme.spacing[5],
+    paddingTop: theme.spacing[4],
+    paddingBottom: theme.spacing[5],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.line,
   },
-  title: {
-    color: theme.colors.text,
-    fontSize: 30,
-    fontWeight: '800',
-  },
-  subtitle: {
-    color: theme.colors.muted,
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  section: {
-    marginTop: 28,
-  },
-  sectionTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  formPanel: {
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    padding: 16,
-  },
-  inputLabel: {
-    marginTop: 12,
-    color: theme.colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  input: {
-    marginTop: 8,
-    minHeight: 46,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
-    color: theme.colors.text,
-    fontSize: 16,
-    paddingHorizontal: 12,
-  },
-  errorText: {
-    marginTop: 12,
-    color: '#B42318',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  statusText: {
-    marginTop: 12,
-    color: theme.colors.primary,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  primaryButton: {
-    marginTop: 16,
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 16,
-  },
-  primaryButtonPressed: {
-    opacity: 0.82,
-  },
-  primaryButtonText: {
-    color: theme.colors.surface,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  infoCard: {
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    padding: 16,
-  },
-  cardTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  cardMeta: {
-    marginTop: 6,
-    color: theme.colors.muted,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  idText: {
-    marginTop: 12,
-    color: theme.colors.muted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  memberRow: {
+  childSummary: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: theme.spacing[4],
+    padding: theme.spacing[5],
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.line,
   },
-  rolePill: {
-    borderRadius: 8,
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.diaperSoft,
+  },
+  avatarText: {
+    color: theme.colors.diaper,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  summaryText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  summaryMeta: {
+    marginTop: theme.spacing[1],
+  },
+  sectionWrap: {
+    paddingHorizontal: theme.spacing[5],
+    marginBottom: 18,
+  },
+  memberCard: {
     borderWidth: 1,
-    borderColor: '#BFD8CC',
-    backgroundColor: '#EDF6F1',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderColor: theme.colors.line,
+    borderRadius: theme.radii.lg,
+    backgroundColor: theme.colors.surface,
+    overflow: 'hidden',
+  },
+  memberAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.accentSoft,
+  },
+  memberAvatarText: {
+    color: theme.colors.accent,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  memberTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[2],
+  },
+  memberName: {
+    color: theme.colors.ink,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  roleBadge: {
+    flexShrink: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[2],
+    borderRadius: theme.radii.pill,
+    backgroundColor: theme.colors.surfaceSunk,
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[1],
+  },
+  roleDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   roleText: {
-    color: theme.colors.primary,
-    fontSize: 12,
-    fontWeight: '800',
+    color: theme.colors.ink2,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  metaPanel: {
+    gap: theme.spacing[2],
+    paddingHorizontal: 32,
+    paddingTop: theme.spacing[2],
+  },
+  idText: {
+    marginTop: theme.spacing[1],
   },
 });
