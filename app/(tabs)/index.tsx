@@ -4,7 +4,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -34,6 +33,20 @@ import {
   type QuickLogActionId,
 } from '../../src/features/logging';
 import { APP_NAME } from '../../src/shared/app-info';
+import {
+  Body,
+  Button,
+  Caption,
+  Card,
+  Chip,
+  EmptyState,
+  Field,
+  Heading,
+  Input,
+  RecordDot,
+  SectionLabel,
+  type RecordTone,
+} from '../../src/shared/ui';
 import { theme } from '../../src/shared/ui/theme';
 
 export default function HomeScreen() {
@@ -188,252 +201,337 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.appName}>{APP_NAME}</Text>
+        <Caption tone="accent" style={styles.appName}>
+          {APP_NAME}
+        </Caption>
         <View style={styles.header}>
           <View>
-            <Text style={styles.childName}>{selectedChild.name}</Text>
-            <Text style={styles.dayCount}>{formatDayCount(dayCount)}</Text>
+            <Heading size="D">{selectedChild.name}</Heading>
+            <Body size="S" tone="ink3" style={styles.dayCount}>
+              {formatDayCount(dayCount)}
+            </Body>
           </View>
           <View style={styles.statusPill}>
-            <Text style={styles.statusText}>
+            {todaySummary.lastLog === null ? null : (
+              <RecordDot
+                type={getRecordTone(todaySummary.lastLog.log_type)}
+                size={6}
+              />
+            )}
+            <Caption tone="ink2" style={styles.statusText}>
               {isLoadingLogs
                 ? '불러오는 중'
                 : todaySummary.lastLog
                   ? getLogTypeLabel(todaySummary.lastLog.log_type)
                   : '기록 대기'}
-            </Text>
+            </Caption>
           </View>
         </View>
         {storageError.length > 0 ? (
           <Text style={styles.storageErrorText}>{storageError}</Text>
         ) : null}
 
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>
-              {todaySummary.feeding.count}회
-            </Text>
-            <Text style={styles.summaryLabel}>
-              수유 {formatFeedingTotal(todaySummary.feeding)}
-            </Text>
+        <Card padding={0} style={styles.summaryCard}>
+          <View style={styles.summaryHeader}>
+            <Caption tone="ink3">{formatTodayLabel()}</Caption>
+            <Caption tone="ink4">{todaySummary.totalLogCount}개 기록</Caption>
           </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>
-              {formatSleepTotal(todaySummary.sleep.totalMinutes)}
-            </Text>
-            <Text style={styles.summaryLabel}>
-              수면 {todaySummary.sleep.count}회
-            </Text>
+          <View style={styles.summaryGrid}>
+            <SummaryStat
+              tone="feed"
+              label="수유"
+              value={`${todaySummary.feeding.count}회`}
+              sub={formatFeedingTotal(todaySummary.feeding)}
+            />
+            <SummaryStat
+              tone="sleep"
+              label="수면"
+              value={formatSleepTotal(todaySummary.sleep.totalMinutes)}
+              sub={`${todaySummary.sleep.count}회`}
+            />
+            <SummaryStat
+              tone="diaper"
+              label="기저귀"
+              value={`${todaySummary.diaper.totalCount}회`}
+              sub={`소 ${todaySummary.diaper.peeCount} · 대 ${todaySummary.diaper.poopCount}`}
+            />
+            <SummaryStat
+              tone={
+                todaySummary.lastLog === null
+                  ? 'note'
+                  : getRecordTone(todaySummary.lastLog.log_type)
+              }
+              label="마지막"
+              value={
+                todaySummary.lastLog
+                  ? getLogTypeLabel(todaySummary.lastLog.log_type)
+                  : '-'
+              }
+              sub={
+                todaySummary.lastLog
+                  ? formatLogTime(todaySummary.lastLog.recorded_at)
+                  : '기록 없음'
+              }
+              last
+            />
           </View>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>
-              {todaySummary.diaper.totalCount}회
-            </Text>
-            <Text style={styles.summaryLabel}>
-              기저귀 소변 {todaySummary.diaper.peeCount} · 대변{' '}
-              {todaySummary.diaper.poopCount}
-            </Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>
-              {todaySummary.lastLog
-                ? getLogTypeLabel(todaySummary.lastLog.log_type)
-                : '-'}
-            </Text>
-            <Text style={styles.summaryLabel}>
-              {todaySummary.lastLog
-                ? formatLogTime(todaySummary.lastLog.recorded_at)
-                : '마지막 기록 없음'}
-            </Text>
-          </View>
-        </View>
+        </Card>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>텍스트 기록</Text>
-          <View style={styles.textLogPanel}>
-            <TextInput
+          <SectionLabel action={<Caption tone="ink4">자연스럽게 적기</Caption>}>
+            텍스트로 기록
+          </SectionLabel>
+          <Card padding={theme.spacing[5]}>
+            <Input
               multiline
               value={textInput}
               placeholder="예: 분유 120ml 먹었어"
-              placeholderTextColor={theme.colors.muted}
               style={styles.textLogInput}
-              textAlignVertical="top"
               onChangeText={(nextText) => {
                 setTextInput(nextText);
                 setParseError('');
               }}
             />
+            <View style={styles.suggestionRow}>
+              {['수면 3시 시작', '대변 봤어', '체온 36.8'].map((suggestion) => (
+                <Chip
+                  key={suggestion}
+                  onPress={() => {
+                    setTextInput(suggestion);
+                    setParseError('');
+                  }}
+                  style={styles.suggestionChip}
+                >
+                  {suggestion}
+                </Chip>
+              ))}
+            </View>
             {parseError.length > 0 ? (
               <Text style={styles.errorText}>{parseError}</Text>
             ) : null}
-            <Pressable
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && styles.primaryButtonPressed,
-              ]}
+            <Button
+              full
+              size="lg"
+              variant={textInput.trim().length > 0 ? 'accent' : 'secondary'}
               onPress={handleParseText}
+              style={styles.textConfirmButton}
             >
-              <Text style={styles.primaryButtonText}>파싱하기</Text>
-            </Pressable>
-          </View>
+              내용 확인
+            </Button>
+          </Card>
         </View>
 
         {pendingLog === null ? null : (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>파싱 결과 확인</Text>
-            <View style={styles.confirmPanel}>
+            <SectionLabel action={<Caption tone="ink4">저장 전 확인</Caption>}>
+              파싱 결과 확인
+            </SectionLabel>
+            <Card padding={theme.spacing[5]} style={styles.confirmPanel}>
               <View style={styles.confirmHeader}>
-                <Text style={styles.confirmTitle}>
+                <Heading size="S">
                   {getLogTypeLabel(pendingLog.log_type)}
-                </Text>
-                <Text style={styles.confidenceText}>
+                </Heading>
+                <Chip active style={styles.confidenceChip}>
                   신뢰도 {formatConfidence(pendingLog.confidence)}
-                </Text>
+                </Chip>
               </View>
-              <Text style={styles.originalText}>{pendingLog.original_text}</Text>
+              <Body size="S" tone="ink3" style={styles.originalText}>
+                {pendingLog.original_text}
+              </Body>
 
               <View style={styles.typeGrid}>
                 {TEXT_LOG_TYPE_OPTIONS.map((logType) => (
-                  <Pressable
+                  <Chip
                     key={logType}
-                    accessibilityRole="button"
-                    style={[
-                      styles.typeButton,
-                      pendingLog.log_type === logType && styles.typeButtonActive,
-                    ]}
+                    active={pendingLog.log_type === logType}
+                    dotColor={getRecordToneColor(logType)}
                     onPress={() => handlePendingLogChange({ log_type: logType })}
                   >
-                    <Text
-                      style={[
-                        styles.typeButtonText,
-                        pendingLog.log_type === logType &&
-                          styles.typeButtonTextActive,
-                      ]}
-                    >
-                      {getLogTypeLabel(logType)}
-                    </Text>
-                  </Pressable>
+                    {getLogTypeLabel(logType)}
+                  </Chip>
                 ))}
               </View>
 
               <View style={styles.editRow}>
-                <View style={styles.editField}>
-                  <Text style={styles.inputLabel}>수치</Text>
-                  <TextInput
-                    value={pendingLog.amountText}
-                    keyboardType="decimal-pad"
-                    placeholder="120"
-                    placeholderTextColor={theme.colors.muted}
-                    style={styles.singleLineInput}
-                    onChangeText={(amountText) =>
-                      handlePendingLogChange({ amountText })
-                    }
-                  />
-                </View>
-                <View style={styles.editField}>
-                  <Text style={styles.inputLabel}>단위</Text>
-                  <TextInput
-                    value={pendingLog.unit}
-                    placeholder="ml"
-                    placeholderTextColor={theme.colors.muted}
-                    style={styles.singleLineInput}
-                    onChangeText={(unit) => handlePendingLogChange({ unit })}
-                  />
-                </View>
+                <Field
+                  compact
+                  label="수치"
+                  value={pendingLog.amountText}
+                  keyboardType="decimal-pad"
+                  placeholder="120"
+                  style={styles.editField}
+                  onChangeText={(amountText) =>
+                    handlePendingLogChange({ amountText })
+                  }
+                />
+                <Field
+                  compact
+                  label="단위"
+                  value={pendingLog.unit}
+                  placeholder="ml"
+                  style={styles.editField}
+                  onChangeText={(unit) => handlePendingLogChange({ unit })}
+                />
               </View>
 
-              <Text style={styles.inputLabel}>메모</Text>
-              <TextInput
+              <Field
+                compact
+                noBorder
+                label="메모"
                 value={pendingLog.memo}
                 placeholder="메모를 추가하세요"
-                placeholderTextColor={theme.colors.muted}
-                style={styles.memoInput}
                 onChangeText={(memo) => handlePendingLogChange({ memo })}
               />
 
               <View style={styles.confirmActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.secondaryButton,
-                    pressed && styles.secondaryButtonPressed,
-                  ]}
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  full
+                  style={styles.confirmActionButton}
                   onPress={handleCancelPendingLog}
                 >
-                  <Text style={styles.secondaryButtonText}>취소</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    styles.confirmSaveButton,
-                    pressed && styles.primaryButtonPressed,
-                  ]}
+                  취소
+                </Button>
+                <Button
+                  variant="accent"
+                  size="lg"
+                  full
+                  style={styles.confirmActionButton}
                   onPress={handleSavePendingLog}
                 >
-                  <Text style={styles.primaryButtonText}>저장</Text>
-                </Pressable>
+                  저장
+                </Button>
               </View>
-            </View>
+            </Card>
           </View>
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>빠른 기록</Text>
+          <SectionLabel action={<Caption tone="ink4">탭 한 번으로 저장</Caption>}>
+            빠른 기록
+          </SectionLabel>
           <View style={styles.quickGrid}>
             {QUICK_LOG_ACTIONS.map((action) => (
-              <Pressable
+              <QuickActionButton
                 key={action.id}
-                accessibilityRole="button"
-                style={({ pressed }) => [
-                  styles.quickButton,
-                  pressed && styles.quickButtonPressed,
-                ]}
+                actionId={action.id}
+                label={action.label}
+                detail={action.detail}
                 onPress={() => handleQuickLog(action.id)}
-              >
-                <Text style={styles.quickLabel}>{action.label}</Text>
-                <Text style={styles.quickDetail}>{action.detail}</Text>
-              </Pressable>
+              />
             ))}
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>최근 타임라인</Text>
+          <SectionLabel action={<Caption tone="accent">전체 보기</Caption>}>
+            최근 기록
+          </SectionLabel>
           {recentLogs.length === 0 ? (
-            <View style={styles.emptyTimeline}>
-              <Text style={styles.emptyTimelineText}>
-                첫 기록을 남기면 여기에 표시됩니다.
-              </Text>
-            </View>
+            <EmptyState title="아직 기록이 없어요" sub="첫 기록을 남기면 여기에 표시됩니다." />
           ) : (
-            <View style={styles.timelineList}>
-              {recentLogs.map((log) => (
-                <View key={log.id} style={styles.timelineItem}>
-                  <View style={styles.timelineDot} />
-                  <View style={styles.timelineContent}>
-                    <Text style={styles.timelineTitle}>
-                      {getLogTypeLabel(log.log_type)}
-                    </Text>
-                    <Text style={styles.timelineMeta}>
-                      {formatLogTime(log.recorded_at)}
-                      {formatLogValue(log)}
-                    </Text>
-                    {log.memo === null ? null : (
-                      <Text style={styles.timelineMemo}>{log.memo}</Text>
-                    )}
-                  </View>
-                </View>
+            <Card padding={0}>
+              {recentLogs.map((log, index) => (
+                <TimelineRow
+                  key={log.id}
+                  log={log}
+                  isLast={index === recentLogs.length - 1}
+                />
               ))}
-            </View>
+            </Card>
           )}
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function SummaryStat({
+  tone,
+  label,
+  value,
+  sub,
+  last = false,
+}: {
+  tone: RecordTone;
+  label: string;
+  value: string;
+  sub: string;
+  last?: boolean;
+}) {
+  return (
+    <View style={[styles.summaryStat, !last && styles.summaryStatDivider]}>
+      <View style={styles.summaryStatLabel}>
+        <RecordDot type={tone} size={6} />
+        <Caption tone="ink3">{label}</Caption>
+      </View>
+      <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+      <Text style={styles.summarySub} numberOfLines={1}>
+        {sub}
+      </Text>
+    </View>
+  );
+}
+
+function QuickActionButton({
+  actionId,
+  label,
+  detail,
+  onPress,
+}: {
+  actionId: QuickLogActionId;
+  label: string;
+  detail: string;
+  onPress: () => void;
+}) {
+  const tone = getQuickActionTone(actionId);
+  const toneStyle = getRecordToneStyle(tone);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.quickButton,
+        {
+          borderColor: pressed ? toneStyle.color : theme.colors.line,
+          backgroundColor: pressed ? toneStyle.soft : theme.colors.surface,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <View style={[styles.quickIcon, { backgroundColor: toneStyle.soft }]}>
+        <RecordDot type={tone} size={10} />
+      </View>
+      <Text style={styles.quickLabel}>{label}</Text>
+      <Text style={styles.quickDetail} numberOfLines={1}>
+        {detail}
+      </Text>
+    </Pressable>
+  );
+}
+
+function TimelineRow({ log, isLast }: { log: BabyLog; isLast: boolean }) {
+  const tone = getRecordTone(log.log_type);
+
+  return (
+    <View style={[styles.timelineItem, !isLast && styles.timelineItemDivider]}>
+      <Text style={styles.timelineTime}>{formatLogTime(log.recorded_at)}</Text>
+      <RecordDot type={tone} size={8} />
+      <View style={styles.timelineContent}>
+        <View style={styles.timelineTitleRow}>
+          <Text style={styles.timelineTitle}>{getLogTypeLabel(log.log_type)}</Text>
+          <Text style={styles.timelineValue}>{formatLogValue(log)}</Text>
+        </View>
+        {log.memo === null ? null : (
+          <Caption tone="ink3" style={styles.timelineMemo}>
+            {log.memo}
+          </Caption>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -464,6 +562,82 @@ function getLogTypeLabel(logType: BabyLogType): string {
   }
 }
 
+function getRecordTone(logType: BabyLogType): RecordTone {
+  switch (logType) {
+    case 'feeding':
+      return 'feed';
+    case 'sleep_start':
+    case 'sleep_end':
+      return 'sleep';
+    case 'diaper_pee':
+    case 'diaper_poop':
+      return 'diaper';
+    case 'temperature':
+      return 'temp';
+    case 'bath':
+      return 'bath';
+    case 'vitamin':
+      return 'vitamin';
+    case 'medicine':
+      return 'medicine';
+    case 'memo':
+    case 'unknown':
+      return 'note';
+  }
+}
+
+function getQuickActionTone(actionId: QuickLogActionId): RecordTone {
+  switch (actionId) {
+    case 'feeding':
+      return 'feed';
+    case 'sleep':
+      return 'sleep';
+    case 'diaper_pee':
+    case 'diaper_poop':
+      return 'diaper';
+    case 'temperature':
+      return 'temp';
+    case 'bath':
+      return 'bath';
+    case 'memo':
+      return 'note';
+  }
+}
+
+function getRecordToneStyle(tone: RecordTone): { color: string; soft: string } {
+  switch (tone) {
+    case 'feed':
+      return { color: theme.colors.feed, soft: theme.colors.feedSoft };
+    case 'sleep':
+      return { color: theme.colors.sleep, soft: theme.colors.sleepSoft };
+    case 'diaper':
+      return { color: theme.colors.diaper, soft: theme.colors.diaperSoft };
+    case 'temp':
+      return { color: theme.colors.temp, soft: theme.colors.tempSoft };
+    case 'bath':
+      return { color: theme.colors.bath, soft: theme.colors.bathSoft };
+    case 'vitamin':
+      return { color: theme.colors.vitamin, soft: theme.colors.vitaminSoft };
+    case 'medicine':
+      return { color: theme.colors.medicine, soft: theme.colors.medicineSoft };
+    case 'note':
+      return { color: theme.colors.note, soft: theme.colors.noteSoft };
+  }
+}
+
+function getRecordToneColor(logType: BabyLogType): string {
+  return getRecordToneStyle(getRecordTone(logType)).color;
+}
+
+function formatTodayLabel(): string {
+  const formattedDate = new Intl.DateTimeFormat('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date());
+
+  return `오늘 · ${formattedDate}`;
+}
+
 function formatLogTime(recordedAt: string): string {
   return new Intl.DateTimeFormat('ko-KR', {
     hour: 'numeric',
@@ -476,7 +650,7 @@ function formatLogValue(log: BabyLog): string {
     return '';
   }
 
-  return ` · ${log.amount}${log.unit}`;
+  return `${log.amount}${log.unit}`;
 }
 
 function formatConfidence(confidence: number): string {
@@ -526,340 +700,240 @@ function createClientLogId(kind: 'quick' | 'text'): string {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.bg,
   },
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 28,
-    paddingBottom: 32,
-    backgroundColor: theme.colors.background,
+    paddingTop: theme.spacing[6],
+    paddingBottom: 40,
+    backgroundColor: theme.colors.bg,
   },
   appName: {
-    color: theme.colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
+    paddingHorizontal: theme.spacing[7],
   },
   header: {
-    marginTop: 18,
+    paddingHorizontal: theme.spacing[7],
+    paddingTop: theme.spacing[2],
+    paddingBottom: theme.spacing[5],
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: 16,
   },
-  childName: {
-    color: theme.colors.text,
-    fontSize: 34,
-    fontWeight: '800',
-  },
   dayCount: {
-    marginTop: 2,
-    color: theme.colors.muted,
-    fontSize: 16,
-    fontWeight: '600',
+    marginTop: theme.spacing[1],
   },
   statusPill: {
-    minWidth: 88,
-    borderRadius: 8,
+    minHeight: 34,
+    maxWidth: 144,
+    borderRadius: theme.radii.pill,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.line,
     backgroundColor: theme.colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: theme.spacing[4],
+    paddingVertical: theme.spacing[2],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing[2],
   },
   statusText: {
-    color: theme.colors.primary,
-    fontSize: 13,
-    fontWeight: '700',
     textAlign: 'center',
   },
-  summaryRow: {
-    marginTop: 24,
-    flexDirection: 'row',
-    gap: 12,
+  summaryCard: {
+    marginHorizontal: theme.spacing[5],
+    marginBottom: theme.spacing[7],
   },
-  summaryItem: {
-    flex: 1,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    padding: 16,
+  summaryHeader: {
+    paddingHorizontal: theme.spacing[5],
+    paddingTop: 14,
+    paddingBottom: theme.spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+  },
+  summaryStat: {
+    width: '25%',
+    minHeight: 82,
+    paddingHorizontal: theme.spacing[3],
+    paddingTop: theme.spacing[3],
+    paddingBottom: theme.spacing[4],
+    justifyContent: 'center',
+  },
+  summaryStatDivider: {
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: theme.colors.line,
+  },
+  summaryStatLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[2],
+    marginBottom: theme.spacing[1],
   },
   summaryValue: {
-    color: theme.colors.text,
-    fontSize: 22,
-    fontWeight: '800',
+    color: theme.colors.ink,
+    fontSize: 17,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
-  summaryLabel: {
-    marginTop: 6,
-    color: theme.colors.muted,
+  summarySub: {
+    marginTop: 2,
+    color: theme.colors.ink4,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  section: {
+    paddingHorizontal: theme.spacing[5],
+    marginBottom: theme.spacing[7],
+  },
+  textLogInput: {
+    minHeight: 68,
+    backgroundColor: theme.colors.surfaceSunk,
+  },
+  suggestionRow: {
+    marginTop: theme.spacing[3],
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing[2],
+  },
+  suggestionChip: {
+    backgroundColor: theme.colors.surfaceSunk,
+  },
+  errorText: {
+    marginTop: theme.spacing[3],
+    color: '#B42318',
     fontSize: 13,
     fontWeight: '600',
   },
-  section: {
-    marginTop: 28,
-  },
-  sectionTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  textLogPanel: {
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    padding: 14,
-  },
-  textLogInput: {
-    minHeight: 74,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
-    color: theme.colors.text,
-    fontSize: 16,
-    lineHeight: 22,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  errorText: {
-    marginTop: 8,
-    color: '#B42318',
-    fontSize: 13,
-    fontWeight: '700',
-  },
   storageErrorText: {
-    marginTop: 12,
+    marginHorizontal: theme.spacing[7],
+    marginBottom: theme.spacing[4],
     color: '#B42318',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  primaryButton: {
-    marginTop: 12,
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 16,
-  },
-  primaryButtonPressed: {
-    opacity: 0.82,
-  },
-  primaryButtonText: {
-    color: theme.colors.surface,
-    fontSize: 15,
-    fontWeight: '800',
+  textConfirmButton: {
+    marginTop: theme.spacing[4],
   },
   confirmPanel: {
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.surface,
-    padding: 14,
+    borderColor: theme.colors.accent,
   },
   confirmHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: theme.spacing[3],
   },
-  confirmTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  confidenceText: {
-    color: theme.colors.primary,
-    fontSize: 13,
-    fontWeight: '800',
+  confidenceChip: {
+    flexShrink: 0,
   },
   originalText: {
-    marginTop: 8,
-    color: theme.colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
+    marginTop: theme.spacing[2],
   },
   typeGrid: {
-    marginTop: 14,
+    marginTop: theme.spacing[4],
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-  },
-  typeButton: {
-    minHeight: 38,
-    justifyContent: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  typeButtonActive: {
-    borderColor: theme.colors.primary,
-    backgroundColor: '#EDF6F1',
-  },
-  typeButtonText: {
-    color: theme.colors.muted,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  typeButtonTextActive: {
-    color: theme.colors.primary,
+    gap: theme.spacing[2],
   },
   editRow: {
-    marginTop: 14,
+    marginTop: theme.spacing[4],
     flexDirection: 'row',
-    gap: 10,
+    gap: theme.spacing[3],
   },
   editField: {
     flex: 1,
-  },
-  inputLabel: {
-    marginBottom: 6,
-    color: theme.colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  singleLineInput: {
-    minHeight: 44,
-    borderRadius: 8,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
-    color: theme.colors.text,
-    fontSize: 15,
-    paddingHorizontal: 12,
-  },
-  memoInput: {
-    minHeight: 44,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
-    color: theme.colors.text,
-    fontSize: 15,
-    paddingHorizontal: 12,
+    borderColor: theme.colors.line,
+    borderRadius: theme.radii.md,
+    marginBottom: theme.spacing[3],
   },
   confirmActions: {
-    marginTop: 14,
+    marginTop: theme.spacing[2],
     flexDirection: 'row',
-    gap: 10,
+    gap: theme.spacing[3],
   },
-  secondaryButton: {
-    minHeight: 46,
+  confirmActionButton: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 16,
-  },
-  secondaryButtonPressed: {
-    backgroundColor: theme.colors.background,
-  },
-  secondaryButtonText: {
-    color: theme.colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  confirmSaveButton: {
-    flex: 1,
-    marginTop: 0,
   },
   quickGrid: {
-    marginTop: 12,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: theme.spacing[3],
   },
   quickButton: {
-    width: '31.6%',
-    minHeight: 82,
-    justifyContent: 'center',
-    borderRadius: 8,
+    width: '22.9%',
+    minHeight: 84,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    borderRadius: theme.radii.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
+    paddingHorizontal: theme.spacing[2],
+    paddingVertical: theme.spacing[3],
   },
-  quickButtonPressed: {
-    borderColor: theme.colors.primary,
-    backgroundColor: '#EDF6F1',
+  quickIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing[2],
   },
   quickLabel: {
-    color: theme.colors.text,
-    fontSize: 17,
-    fontWeight: '800',
+    color: theme.colors.ink,
+    fontSize: 12,
+    fontWeight: '700',
     textAlign: 'center',
   },
   quickDetail: {
-    marginTop: 6,
-    color: theme.colors.muted,
-    fontSize: 12,
-    fontWeight: '600',
+    marginTop: 2,
+    color: theme.colors.ink4,
+    fontSize: 11,
+    fontWeight: '500',
     textAlign: 'center',
   },
-  emptyTimeline: {
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    padding: 18,
-  },
-  emptyTimelineText: {
-    color: theme.colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  timelineList: {
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-  },
   timelineItem: {
-    minHeight: 64,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: theme.spacing[3],
+    paddingHorizontal: theme.spacing[5],
+    paddingVertical: theme.spacing[4],
   },
-  timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.colors.primary,
+  timelineItemDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.line,
+  },
+  timelineTime: {
+    width: 58,
+    color: theme.colors.ink3,
+    fontSize: 12,
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
   },
   timelineContent: {
     flex: 1,
+    minWidth: 0,
+  },
+  timelineTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: theme.spacing[2],
   },
   timelineTitle: {
-    color: theme.colors.text,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  timelineMeta: {
-    marginTop: 4,
-    color: theme.colors.muted,
+    color: theme.colors.ink,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  timelineValue: {
+    color: theme.colors.ink,
+    fontSize: 14,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   timelineMemo: {
-    marginTop: 3,
-    color: theme.colors.muted,
-    fontSize: 13,
-    lineHeight: 18,
+    marginTop: 2,
   },
 });
