@@ -270,6 +270,100 @@ PR 작업이 끝나도 커밋 전이면 `진행 중`으로 둔다. 완료 기준
 - 사진이 가족, 아기, 날짜 기준으로 표시된다.
 - 영상 생성, 댓글, 반응은 포함하지 않는다.
 
+## PR-13: Supabase 백엔드 스키마와 RLS 초안
+
+상태: 진행 중
+
+목표: 앱 동작을 바꾸지 않고 가족 공유, 원격 백업, 사진 원격 저장을 위한 서버 schema와 권한 기반을 만든다.
+
+범위:
+
+- Supabase local project 구조를 추가한다.
+- `families`, `family_members`, `children`, `baby_logs`, `media_assets` migration을 작성한다.
+- `family_id` 기준 RLS policy를 작성한다.
+- `parent`, `family` 역할만 허용한다.
+- R2 private bucket을 전제로 `media_assets`에는 object key와 metadata만 저장한다.
+- local 검증용 seed 또는 RLS smoke test SQL을 추가한다.
+
+완료 기준:
+
+- Supabase migration 적용 시 핵심 테이블이 생성된다.
+- 같은 가족 구성원만 가족, 아기, 기록, 미디어 metadata를 조회할 수 있다.
+- `parent`는 같은 가족의 아기, 기록, 미디어 metadata를 생성/수정할 수 있다.
+- `family`는 같은 가족 데이터를 조회할 수 있지만 write는 차단된다.
+- 앱의 기존 `AsyncStorage` 기록/가족/사진 흐름은 변경하지 않는다.
+
+## PR-14: 앱 Supabase Auth 연결
+
+상태: 대기
+
+목표: 원격 가족 공유를 준비하기 위해 앱에 Supabase Auth client와 세션 계층을 연결한다.
+
+범위:
+
+- `@supabase/supabase-js`와 환경 변수 예시를 추가한다.
+- 로그인/세션 client 계층을 만든다.
+- 기존 로컬 기록 저장 흐름은 유지한다.
+- 원격 가족 생성과 동기화는 후속 PR로 둔다.
+
+완료 기준:
+
+- 앱에서 Supabase session 상태를 읽을 수 있다.
+- 로그인되지 않은 상태에서도 기존 로컬 MVP 흐름은 깨지지 않는다.
+
+## PR-15: 원격 가족과 아기 bootstrap
+
+상태: 대기
+
+목표: 로그인한 사용자가 원격 가족과 아기 기준 데이터를 만들 수 있게 한다.
+
+범위:
+
+- 현재 로컬 family context를 원격 `families`, `family_members`, `children` 구조와 매핑한다.
+- 첫 `parent` 구성원 생성 흐름을 정의한다.
+- 초대 링크/코드의 실제 공유 UX는 별도 PR로 둔다.
+
+완료 기준:
+
+- 로그인한 사용자는 원격 가족, 아기, 본인 `parent` 구성원을 만들 수 있다.
+- 기존 로컬 ID와 원격 UUID의 매핑 전략이 문서화된다.
+
+## PR-16: `baby_logs` 클라우드 백업 1차
+
+상태: 대기
+
+목표: 로컬 기록 흐름을 유지하면서 `baby_logs`를 원격으로 백업하는 첫 동기화 경로를 만든다.
+
+범위:
+
+- 로컬 저장을 먼저 수행한다.
+- 원격 저장 실패를 재시도할 수 있는 최소 queue를 둔다.
+- 충돌 해결과 다중 기기 완전 동기화는 제외한다.
+
+완료 기준:
+
+- 새 기록이 로컬에 즉시 저장되고 원격 `baby_logs`에도 백업된다.
+- 원격 실패가 앱의 빠른 기록 흐름을 막지 않는다.
+
+## PR-17: R2 기반 사진 원격 저장 1차
+
+상태: 대기
+
+목표: 가족 사진을 private R2 bucket에 저장하고 Supabase에는 metadata만 남긴다.
+
+범위:
+
+- R2 private bucket과 object key 규칙을 확정한다.
+- signed upload/download URL 발급 경로를 만든다.
+- `media_assets` 상태를 `draft`에서 `uploaded`로 갱신한다.
+- 썸네일 생성 고도화는 후속 PR로 둔다.
+
+완료 기준:
+
+- 사진 원본은 R2에 저장된다.
+- Supabase에는 object key와 metadata만 저장된다.
+- 가족 구성원이 아닌 사용자는 접근 URL을 받을 수 없다.
+
 ## 추천 진행 순서
 
 1. PR-01부터 PR-06까지 진행해 핵심 기록 루프를 검증한다.
@@ -277,3 +371,5 @@ PR 작업이 끝나도 커밋 전이면 `진행 중`으로 둔다. 완료 기준
 3. PR-08부터 PR-10까지 타임라인, 오늘 요약, 인사이트를 확장한다.
 4. PR-11에서 가족과 아기 경계를 제품 구조에 맞게 정리한다.
 5. PR-12에서 사진 업로드를 붙인다.
+6. PR-13에서 Supabase schema/RLS를 만든다.
+7. PR-14부터 PR-17까지 Auth, 원격 가족 bootstrap, 기록 백업, R2 사진 저장을 순서대로 붙인다.

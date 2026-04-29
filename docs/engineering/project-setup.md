@@ -13,6 +13,7 @@ Expo + React Native + TypeScript 앱이 저장소 루트에 스캐폴딩되었�
 - PR-11 가족과 아기 최소 모델은 `AsyncStorage` 로컬 family context로 시작한다.
 - PR-12 사진 업로드 진입은 `expo-image-picker`와 `AsyncStorage` 로컬 사진 메타데이터로 시작한다.
 - 최종 백엔드 지향점은 Expo SQLite, Supabase, Cloudflare R2 조합으로 둔다.
+- PR-13 Supabase 백엔드 초안은 앱 동작을 바꾸지 않고 `supabase/` migration과 RLS 정책만 추가한다.
 - 자연어 파서 같은 도메인 로직은 단위 테스트 작성.
 
 ## 확정 기술 스택
@@ -80,6 +81,34 @@ npm run typecheck
 npm test
 ```
 
+## Supabase 로컬 백엔드
+
+PR-13 기준으로 Supabase local project 구조를 `supabase/` 아래에 둔다.
+
+```txt
+supabase/config.toml
+supabase/migrations/
+supabase/seed.sql
+supabase/tests/
+```
+
+Supabase CLI는 아직 앱 의존성으로 설치하지 않는다. 로컬 검증이 필요하면 개발 머신에 Supabase CLI와 Docker를 준비한 뒤 아래 흐름을 사용한다.
+
+```sh
+supabase start
+supabase db reset
+psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f supabase/tests/rls_smoke.sql
+```
+
+PR-13의 migration은 다음 범위만 다룬다.
+
+- `families`, `family_members`, `children`, `baby_logs`, `media_assets` schema.
+- `family_id` 기준 RLS.
+- `parent`, `family` 역할 제한.
+- R2 object key와 media metadata 저장 구조.
+
+PR-13에서는 앱 로그인 UI, `@supabase/supabase-js`, Expo SQLite 이전, R2 signed URL 발급을 구현하지 않는다.
+
 ## 완료된 세팅
 
 - Node 버전 파일 `.nvmrc`를 추가했다.
@@ -93,7 +122,7 @@ npm test
 2. 경로 alias를 추가한다.
 3. 아기 기록과 자연어 파서 초기 도메인 모듈을 만든다.
 4. 기록 수정/삭제, 날짜별 조회, sync queue가 필요해지면 `baby_logs`부터 Expo SQLite로 이전한다.
-5. 인증, 가족 공유, 사진 또는 다중 기기 동기화가 필요해지면 Supabase와 R2를 도입한다.
+5. 인증, 가족 공유, 사진 또는 다중 기기 동기화가 필요해지면 PR-13의 Supabase schema/RLS를 기준으로 앱 연결과 R2 연동을 진행한다.
 
 ## 초기 도메인 모듈
 
