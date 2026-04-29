@@ -1,32 +1,24 @@
 # 다음 작업
 
-## 홈 화면 디자인 시스템 적용
-
-상태: 완료
-
-이유:
-
-- `docs/design/prototype/`에 전달받은 디자인 원본을 보관했다.
-- `src/shared/ui/`에 디자인 시스템 토큰과 React Native 공통 UI를 추가했다.
-- 홈 화면에 새 디자인 시스템을 적용했다.
-- 홈은 빠른 기록, 텍스트 기록, 저장 전 확인, 오늘 요약, 최근 타임라인을 모두 포함하므로 이후 화면 이식 기준으로 사용한다.
-
-완료 내용:
-
-- 홈 헤더, 오늘 요약, 텍스트 기록, 저장 전 확인, 빠른 기록, 최근 타임라인을 디자인 시스템 토큰 기반 UI로 정리했다.
-- 저장소, 도메인 모델, 파서 동작은 변경하지 않았다.
-
-## 다음 작업 재선정
+## PR-14 앱 Supabase Auth 연결
 
 상태: 대기
 
 이유:
 
-- 홈 화면 적용이 끝났으므로 다음 작업을 새로 고정해야 한다.
-- 후보는 다른 탭의 디자인 시스템 적용, 홈 화면 모바일 실기기 검수, 또는 다음 제품 우선순위 재정리다.
+- PR-13에서 Supabase local project, 핵심 schema, `family_id` 기준 RLS, seed, RLS smoke test를 추가했다.
+- PostgreSQL 15 임시 DB에서 migration, RLS smoke test, seed 적용을 실제 검증했다.
+- 다음 백엔드 단계는 앱에 Supabase Auth client와 세션 계층을 붙이는 것이다.
+- 기존 `AsyncStorage` 기반 기록, 가족 context, 사진 흐름은 PR-14에서도 유지해야 한다.
 
 바로 실행할 요청 예:
 
 ```txt
-td:plan 다음 작업 다시 정해줘
+td:spec PR-14 앱 Supabase Auth 연결 명세 작성해줘
+```
+
+후속 실행 예:
+
+```txt
+td:exec PR-14 Supabase Auth 연결 구현해줘
 ```
