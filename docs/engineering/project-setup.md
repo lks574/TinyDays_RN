@@ -12,6 +12,7 @@ Expo + React Native + TypeScript 앱이 저장소 루트에 스캐폴딩되었�
 - PR-07 기록 저장소는 `AsyncStorage`로 시작하고, Supabase는 인증/가족/동기화 범위에서 재검토한다.
 - PR-11 가족과 아기 최소 모델은 `AsyncStorage` 로컬 family context로 시작한다.
 - PR-12 사진 업로드 진입은 `expo-image-picker`와 `AsyncStorage` 로컬 사진 메타데이터로 시작한다.
+- 최종 백엔드 지향점은 Expo SQLite, Supabase, Cloudflare R2 조합으로 둔다.
 - 자연어 파서 같은 도메인 로직은 단위 테스트 작성.
 
 ## 확정 기술 스택
@@ -28,6 +29,9 @@ PR-01 기준으로 아래 기술과 버전을 사용합니다.
 | UI 런타임 | React Native | `0.81.5` |
 | UI 라이브러리 | React | `19.1.0` |
 | 로컬 저장소 | `@react-native-async-storage/async-storage` | `2.2.0` |
+| 최종 로컬 DB 후보 | Expo SQLite | 도입 시점에 확정 |
+| 최종 서버 후보 | Supabase | 인증/동기화 PR에서 확정 |
+| 최종 미디어 저장소 후보 | Cloudflare R2 | 미디어 원격 저장 PR에서 확정 |
 | 언어 | TypeScript | `~5.9.2` |
 | 린트 | ESLint | `^9.39.4` |
 | Expo 린트 설정 | `eslint-config-expo` | `~10.0.0` |
@@ -88,7 +92,8 @@ npm test
 1. 필요한 시점에 포매팅 기준을 추가한다.
 2. 경로 alias를 추가한다.
 3. 아기 기록과 자연어 파서 초기 도메인 모듈을 만든다.
-4. 인증, 가족 공유, 사진 또는 다중 기기 동기화가 필요해지면 Supabase를 재검토한다.
+4. 기록 수정/삭제, 날짜별 조회, sync queue가 필요해지면 `baby_logs`부터 Expo SQLite로 이전한다.
+5. 인증, 가족 공유, 사진 또는 다중 기기 동기화가 필요해지면 Supabase와 R2를 도입한다.
 
 ## 초기 도메인 모듈
 

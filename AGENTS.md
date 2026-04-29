@@ -24,6 +24,19 @@ TinyDays는 가족 중심 베이비 라이프로그 앱입니다. 첫 번째 제
 - 타임라인과 분석을 단순하게 유지하기 위해 MVP에서는 통합 `baby_logs` 모델로 시작한다.
 - 저장소, 백엔드, 데이터 모델 결정은 구현 전에 문서로 남긴다.
 
+## 백엔드/저장소 기준
+
+최종 지향 구조는 local-first 앱입니다.
+
+- 앱 내부 저장소는 Expo SQLite를 기준으로 한다.
+- 서버 인증, 가족 권한, 서버 기준 데이터는 Supabase Auth/Postgres/RLS를 기준으로 한다.
+- 사진/영상 원본, 썸네일, 압축본은 Cloudflare R2 private bucket을 기준으로 한다.
+- NAS, S3, WebDAV 연동은 고급 사용자용 선택 기능으로 두고 제품 필수 경로에는 두지 않는다.
+- 현재 MVP 기록 루프는 `AsyncStorage` repository를 유지하고, 날짜별 조회, 수정/삭제, sync queue가 필요해지는 시점에 `baby_logs`부터 Expo SQLite로 이전한다.
+- 광고 기반 수익화와 무료 무제한 저장 경쟁은 피하고, 저장공간과 가족 공유 중심의 투명한 유료 모델을 우선한다.
+
+세부 구조는 `docs/architecture/backend-storage-strategy.md`를 기준으로 확인한다. 현재 개발 환경과 도입 예정 기술은 `docs/engineering/project-setup.md`를 기준으로 확인한다. 되돌리기 어려운 백엔드 결정은 `docs/architecture/decisions.md`에 ADR로 남긴다.
+
 ## 에이전트 역할 문서
 
 역할별 세부 지침은 `docs/agents/`에 둔다. 작업 성격이 명확하면 해당 문서를 먼저 참고한다.
