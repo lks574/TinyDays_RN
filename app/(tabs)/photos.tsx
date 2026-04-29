@@ -3,7 +3,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from 'expo-router';
 import {
   Image,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,13 +20,38 @@ import {
   createBabyPhoto,
   createBabyPhotoDateGroups,
   type BabyPhoto,
+  type BabyPhotoDateGroup,
 } from '../../src/domain/photos';
 import { localFamilyContextRepository } from '../../src/features/family';
 import { localBabyPhotoRepository } from '../../src/features/photos';
+import {
+  Badge,
+  Body,
+  Button,
+  Caption,
+  Chip,
+  EmptyState,
+  ScreenHeader,
+  SectionLabel,
+  Stack,
+} from '../../src/shared/ui';
 import { theme } from '../../src/shared/ui/theme';
+
+type PhotoPeriodFilter = 'all' | 'today' | 'week' | 'month';
+
+const PHOTO_PERIOD_FILTERS: readonly {
+  id: PhotoPeriodFilter;
+  label: string;
+}[] = [
+  { id: 'all', label: '전체' },
+  { id: 'today', label: '오늘' },
+  { id: 'week', label: '최근 7일' },
+  { id: 'month', label: '이번 달' },
+];
 
 export default function PhotosScreen() {
   const [photos, setPhotos] = useState<BabyPhoto[]>([]);
+  const [periodFilter, setPeriodFilter] = useState<PhotoPeriodFilter>('all');
   const [familyContext, setFamilyContext] = useState<FamilyContext>(() =>
     createDefaultFamilyContext(new Date().toISOString()),
   );
@@ -35,6 +59,7 @@ export default function PhotosScreen() {
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
+  const now = new Date().toISOString();
   const selectedChild = useMemo(
     () => getSelectedChild(familyContext),
     [familyContext],
@@ -48,9 +73,21 @@ export default function PhotosScreen() {
       createBabyPhotoDateGroups(photos, {
         familyId: familyContext.family.id,
         childId: selectedChild.id,
-        now: new Date().toISOString(),
+        now,
       }),
-    [familyContext.family.id, photos, selectedChild.id],
+    [familyContext.family.id, now, photos, selectedChild.id],
+  );
+  const visiblePhotoGroups = useMemo(
+    () => filterPhotoGroupsByPeriod(photoGroups, periodFilter, now),
+    [now, periodFilter, photoGroups],
+  );
+  const totalPhotoCount = photoGroups.reduce(
+    (count, group) => count + group.photos.length,
+    0,
+  );
+  const visiblePhotoCount = visiblePhotoGroups.reduce(
+    (count, group) => count + group.photos.length,
+    0,
   );
 
   useFocusEffect(
@@ -110,7 +147,7 @@ export default function PhotosScreen() {
     }
 
     const asset = result.assets[0];
-    const now = new Date().toISOString();
+    const capturedAt = new Date().toISOString();
     const nextPhoto = createBabyPhoto(
       {
         ...ownerContext,
@@ -120,11 +157,11 @@ export default function PhotosScreen() {
         file_name: asset.fileName ?? null,
         file_size: asset.fileSize ?? null,
         mime_type: asset.mimeType ?? null,
-        captured_at: now,
+        captured_at: capturedAt,
       },
       {
-        id: createClientPhotoId(now),
-        now,
+        id: createClientPhotoId(capturedAt),
+        now: capturedAt,
       },
     );
 
@@ -132,6 +169,7 @@ export default function PhotosScreen() {
       const nextPhotos = await localBabyPhotoRepository.savePhoto(nextPhoto);
 
       setPhotos(nextPhotos);
+      setPeriodFilter('all');
       setStatusMessage('사진을 추가했습니다.');
       setErrorMessage('');
     } catch {
@@ -143,62 +181,113 @@ export default function PhotosScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>사진</Text>
-          <Text style={styles.title}>{selectedChild.name} 사진</Text>
-          <Text style={styles.subtitle}>
-            가족 안에서만 보는 사진을 날짜별로 모아 봅니다.
-          </Text>
+        <ScreenHeader
+          eyebrow="사진"
+          title={`${selectedChild.name} 사진`}
+          sub="가족 안에서만 보는 비공개 기록이에요."
+          trailing={
+            <Badge tone="accent">
+              {totalPhotoCount > 0 ? `${totalPhotoCount}장` : '비공개'}
+            </Badge>
+          }
+          style={styles.header}
+        />
+
+        <View style={styles.topActionRow}>
+          <View style={styles.privacyPill}>
+            <Text style={styles.privacyIcon}>가족</Text>
+            <Caption tone="ink3">가족만 볼 수 있어요</Caption>
+          </View>
+          <Button variant="primary" size="sm" onPress={handlePickPhoto}>
+            + 사진 추가
+          </Button>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.uploadButton,
-            pressed && styles.uploadButtonPressed,
-          ]}
-          onPress={handlePickPhoto}
-        >
-          <Text style={styles.uploadButtonText}>사진 추가</Text>
-        </Pressable>
+        <View style={styles.filterSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.filterList}>
+              {PHOTO_PERIOD_FILTERS.map((filter) => (
+                <Chip
+                  key={filter.id}
+                  active={periodFilter === filter.id}
+                  onPress={() => setPeriodFilter(filter.id)}
+                >
+                  {filter.label}
+                </Chip>
+              ))}
+            </View>
+          </ScrollView>
+          <Caption tone="ink4" style={styles.filterCount}>
+            {visiblePhotoCount}장
+          </Caption>
+        </View>
 
-        {errorMessage.length > 0 ? (
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        ) : null}
-        {statusMessage.length > 0 ? (
-          <Text style={styles.statusText}>{statusMessage}</Text>
-        ) : null}
+        <Stack gap={theme.spacing[3]} style={styles.messageStack}>
+          {errorMessage.length > 0 ? (
+            <Body size="S" tone="temp">
+              {errorMessage}
+            </Body>
+          ) : null}
+          {statusMessage.length > 0 ? (
+            <Body size="S" tone="accent">
+              {statusMessage}
+            </Body>
+          ) : null}
+          {isLoading ? (
+            <Body size="S" tone="ink3">
+              사진을 불러오는 중입니다.
+            </Body>
+          ) : null}
+        </Stack>
 
-        {isLoading ? (
-          <Text style={styles.loadingText}>사진을 불러오는 중입니다.</Text>
-        ) : null}
-
-        {!isLoading && photoGroups.length === 0 ? (
-          <View style={styles.emptyPanel}>
-            <Text style={styles.emptyTitle}>아직 추가된 사진이 없습니다.</Text>
-            <Text style={styles.emptyText}>
-              첫 사진을 추가하면 오늘 날짜 아래에 표시됩니다.
-            </Text>
+        {!isLoading && totalPhotoCount === 0 ? (
+          <View style={styles.emptyWrap}>
+            <EmptyState
+              title="아직 추가된 사진이 없습니다."
+              sub="첫 사진을 추가하면 오늘 날짜 아래에 표시됩니다."
+              action={
+                <Button variant="soft" size="sm" onPress={handlePickPhoto}>
+                  사진 추가
+                </Button>
+              }
+            />
           </View>
         ) : null}
 
-        {photoGroups.map((group) => (
-          <View key={group.dateKey} style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{group.label}</Text>
-              <Text style={styles.sectionCount}>{group.photos.length}장</Text>
-            </View>
+        {!isLoading && totalPhotoCount > 0 && visiblePhotoGroups.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <EmptyState
+              title="해당하는 사진이 없어요."
+              sub="다른 기간을 선택해 보세요."
+            />
+          </View>
+        ) : null}
+
+        {visiblePhotoGroups.map((group) => (
+          <View key={group.dateKey} style={styles.daySection}>
+            <SectionLabel
+              action={
+                <Caption tone="ink4" style={styles.photoCount}>
+                  {group.photos.length}장
+                </Caption>
+              }
+              style={styles.dayHeader}
+            >
+              {group.label}
+            </SectionLabel>
             <View style={styles.photoGrid}>
               {group.photos.map((photo) => (
-                <View key={photo.id} style={styles.photoCard}>
+                <View key={photo.id} style={styles.photoTile}>
                   <Image
                     source={{ uri: photo.uri }}
                     style={styles.photoImage}
                     resizeMode="cover"
                   />
-                  <Text style={styles.photoMeta}>
-                    {formatPhotoTime(photo.captured_at)}
-                  </Text>
+                  <View style={styles.photoOverlay}>
+                    <Text style={styles.photoTime}>
+                      {formatPhotoTime(photo.captured_at)}
+                    </Text>
+                  </View>
                 </View>
               ))}
             </View>
@@ -217,6 +306,53 @@ function createClientPhotoId(now: string): string {
   return `photo-${new Date(now).getTime()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function filterPhotoGroupsByPeriod(
+  groups: readonly BabyPhotoDateGroup[],
+  period: PhotoPeriodFilter,
+  now: string,
+): BabyPhotoDateGroup[] {
+  if (period === 'all') {
+    return [...groups];
+  }
+
+  return groups
+    .map((group) => ({
+      ...group,
+      photos: group.photos.filter((photo) =>
+        isPhotoInPeriod(photo.captured_at, period, now),
+      ),
+    }))
+    .filter((group) => group.photos.length > 0);
+}
+
+function isPhotoInPeriod(
+  capturedAt: string,
+  period: PhotoPeriodFilter,
+  now: string,
+): boolean {
+  const capturedDate = new Date(capturedAt);
+  const nowDate = new Date(now);
+  const capturedTime = capturedDate.getTime();
+  const nowTime = nowDate.getTime();
+
+  if (!Number.isFinite(capturedTime) || capturedTime > nowTime) {
+    return false;
+  }
+
+  if (period === 'today') {
+    return capturedDate.toDateString() === nowDate.toDateString();
+  }
+
+  if (period === 'week') {
+    return nowTime - capturedTime <= 7 * 24 * 60 * 60 * 1000;
+  }
+
+  return (
+    capturedDate.getFullYear() === nowDate.getFullYear() &&
+    capturedDate.getMonth() === nowDate.getMonth()
+  );
+}
+
 function formatPhotoTime(value: string): string {
   return new Intl.DateTimeFormat('ko-KR', {
     hour: '2-digit',
@@ -227,128 +363,103 @@ function formatPhotoTime(value: string): string {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.bg,
   },
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 28,
-    paddingBottom: 32,
-    backgroundColor: theme.colors.background,
+    paddingBottom: theme.spacing[8],
+    backgroundColor: theme.colors.bg,
   },
   header: {
-    gap: 8,
+    paddingBottom: theme.spacing[4],
   },
-  eyebrow: {
-    color: theme.colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  title: {
-    color: theme.colors.text,
-    fontSize: 30,
-    fontWeight: '800',
-  },
-  subtitle: {
-    maxWidth: 340,
-    color: theme.colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  uploadButton: {
-    marginTop: 24,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: theme.colors.primary,
-  },
-  uploadButtonPressed: {
-    opacity: 0.78,
-  },
-  uploadButtonText: {
-    color: theme.colors.surface,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  errorText: {
-    marginTop: 12,
-    color: '#B42318',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  statusText: {
-    marginTop: 12,
-    color: theme.colors.primary,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  loadingText: {
-    marginTop: 20,
-    color: theme.colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  emptyPanel: {
-    marginTop: 24,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 8,
-    backgroundColor: theme.colors.surface,
-    gap: 8,
-  },
-  emptyTitle: {
-    color: theme.colors.text,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  emptyText: {
-    color: theme.colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  section: {
-    marginTop: 28,
-    gap: 12,
-  },
-  sectionHeader: {
+  topActionRow: {
+    paddingHorizontal: theme.spacing[5],
+    paddingBottom: theme.spacing[4],
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: theme.spacing[3],
   },
-  sectionTitle: {
-    color: theme.colors.text,
-    fontSize: 20,
-    fontWeight: '800',
+  privacyPill: {
+    minHeight: 32,
+    flex: 1,
+    paddingHorizontal: theme.spacing[4],
+    borderWidth: 1,
+    borderColor: theme.colors.line,
+    borderRadius: theme.radii.pill,
+    backgroundColor: theme.colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[2],
   },
-  sectionCount: {
-    color: theme.colors.muted,
-    fontSize: 13,
+  privacyIcon: {
+    color: theme.colors.accent,
+    fontSize: 14,
     fontWeight: '700',
+  },
+  filterSection: {
+    paddingLeft: theme.spacing[5],
+    paddingRight: theme.spacing[5],
+    paddingBottom: theme.spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[3],
+  },
+  filterList: {
+    flexDirection: 'row',
+    gap: theme.spacing[2],
+    paddingRight: theme.spacing[2],
+  },
+  filterCount: {
+    marginLeft: 'auto',
+    fontVariant: ['tabular-nums'],
+  },
+  messageStack: {
+    paddingHorizontal: theme.spacing[5],
+  },
+  emptyWrap: {
+    paddingHorizontal: theme.spacing[5],
+    paddingTop: theme.spacing[5],
+  },
+  daySection: {
+    paddingHorizontal: theme.spacing[5],
+    paddingTop: theme.spacing[5],
+  },
+  dayHeader: {
+    paddingHorizontal: theme.spacing[1],
+  },
+  photoCount: {
+    fontVariant: ['tabular-nums'],
   },
   photoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: theme.spacing[2],
   },
-  photoCard: {
-    width: '48%',
+  photoTile: {
+    width: '31.8%',
+    aspectRatio: 1,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 8,
-    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.md,
+    backgroundColor: theme.colors.line,
   },
   photoImage: {
     width: '100%',
-    aspectRatio: 1,
-    backgroundColor: theme.colors.border,
+    height: '100%',
+    backgroundColor: theme.colors.line,
   },
-  photoMeta: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    color: theme.colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
+  photoOverlay: {
+    position: 'absolute',
+    left: theme.spacing[2],
+    bottom: theme.spacing[2],
+    paddingHorizontal: theme.spacing[2],
+    paddingVertical: 2,
+    borderRadius: theme.radii.pill,
+    backgroundColor: 'rgba(26,24,22,0.56)',
+  },
+  photoTime: {
+    color: theme.colors.white,
+    fontSize: 9,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
 });
