@@ -8,14 +8,32 @@ import { createWeeklyInsights } from '../../src/domain/insights';
 import { localBabyLogRepository } from '../../src/features/logging';
 import { theme } from '../../src/shared/ui/theme';
 
+type InsightType = 'feed' | 'sleep' | 'diaper';
+
+type InsightCardProps = {
+  type: InsightType;
+  title: string;
+  headline: string;
+  sub: string;
+  bars: readonly number[];
+  max: number;
+  days: readonly string[];
+  formatter?: (value: number) => string;
+};
+
+const insightTone: Record<InsightType, { color: string; soft: string }> = {
+  feed: { color: theme.colors.feed, soft: theme.colors.feedSoft },
+  sleep: { color: theme.colors.sleep, soft: theme.colors.sleepSoft },
+  diaper: { color: theme.colors.diaper, soft: theme.colors.diaperSoft },
+};
+
 export default function InsightsScreen() {
   const [logs, setLogs] = useState<BabyLog[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [storageError, setStorageError] = useState('');
-  const insights = useMemo(
-    () => createWeeklyInsights(logs, new Date().toISOString()),
-    [logs],
-  );
+  const now = new Date().toISOString();
+  const insights = useMemo(() => createWeeklyInsights(logs, now), [logs, now]);
+  const dailyBars = useMemo(() => createDailyInsightBars(logs, now), [logs, now]);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,89 +71,219 @@ export default function InsightsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.eyebrow}>인사이트</Text>
-            <Text style={styles.title}>최근 7일 패턴</Text>
-          </View>
-          <View style={styles.statusPill}>
-            <Text style={styles.statusText}>
-              {isLoadingLogs ? '불러오는 중' : `${insights.totalLogCount}개`}
-            </Text>
-          </View>
+          <Text style={styles.eyebrow}>인사이트</Text>
+          <Text style={styles.title}>최근 7일 패턴</Text>
+          <Text style={styles.subtitle}>
+            {formatDateKey(insights.startDateKey)} -{' '}
+            {formatDateKey(insights.endDateKey)} ·{' '}
+            {isLoadingLogs ? '불러오는 중' : `${insights.totalLogCount}개 기록`}
+          </Text>
         </View>
 
         {storageError.length > 0 ? (
           <Text style={styles.errorText}>{storageError}</Text>
         ) : null}
 
-        <View style={styles.rangePanel}>
-          <Text style={styles.rangeLabel}>
-            {formatDateKey(insights.startDateKey)} -{' '}
-            {formatDateKey(insights.endDateKey)}
-          </Text>
-          <Text style={styles.rangeDescription}>
-            수유, 수면, 기저귀 기록만 기본 패턴에 반영합니다.
+        <View style={styles.noticeCard}>
+          <View style={styles.noticeHeader}>
+            <Text style={styles.noticeBadge}>참고</Text>
+            <Text style={styles.noticeTitle}>{insights.nextAction.title}</Text>
+          </View>
+          <Text style={styles.noticeBody}>{insights.nextAction.description}</Text>
+          <Text style={styles.noticeFootnote}>
+            기록을 모아 만든 단순 규칙이에요. 의학적 안내가 아니에요.
           </Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>다음 행동 안내</Text>
-          <View style={styles.nextActionPanel}>
-            <Text style={styles.nextActionTitle}>{insights.nextAction.title}</Text>
-            <Text style={styles.nextActionDescription}>
-              {insights.nextAction.description}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>7일 요약</Text>
-          <View style={styles.metricGrid}>
-            <MetricCard
-              label="수유"
-              value={`${insights.feeding.count}회`}
-              detail={`총 ${formatAmount(
-                insights.feeding.totalAmount,
-                insights.feeding.unit,
-              )} · 하루 ${formatAverage(insights.feeding.averageCountPerDay)}회`}
-            />
-            <MetricCard
-              label="수면"
-              value={formatDuration(insights.sleep.totalMinutes)}
-              detail={`${insights.sleep.count}회 · 하루 ${formatDuration(
-                insights.sleep.averageMinutesPerDay,
-              )}`}
-            />
-            <MetricCard
-              label="기저귀"
-              value={`${insights.diaper.totalCount}회`}
-              detail={`소변 ${insights.diaper.peeCount} · 대변 ${
-                insights.diaper.poopCount
-              } · 하루 ${formatAverage(insights.diaper.averageCountPerDay)}회`}
-            />
-          </View>
+        <View style={styles.cardStack}>
+          <InsightCard
+            type="feed"
+            title="수유"
+            headline={`하루 평균 ${formatAverage(
+              insights.feeding.averageCountPerDay,
+            )}회 · ${formatAmount(
+              insights.feeding.averageAmountPerDay,
+              insights.feeding.unit,
+            )}`}
+            sub={`7일 합계 ${insights.feeding.count}회 · ${formatAmount(
+              insights.feeding.totalAmount,
+              insights.feeding.unit,
+            )}`}
+            bars={dailyBars.feed}
+            max={Math.max(1, ...dailyBars.feed)}
+            days={dailyBars.days}
+          />
+          <InsightCard
+            type="sleep"
+            title="수면"
+            headline={`하루 평균 ${formatDuration(
+              insights.sleep.averageMinutesPerDay,
+            )}`}
+            sub={`7일 합계 ${insights.sleep.count}회 · ${formatDuration(
+              insights.sleep.totalMinutes,
+            )}`}
+            bars={dailyBars.sleep}
+            max={Math.max(60, ...dailyBars.sleep)}
+            days={dailyBars.days}
+            formatter={(value) => formatDuration(value)}
+          />
+          <InsightCard
+            type="diaper"
+            title="기저귀"
+            headline={`하루 평균 ${formatAverage(
+              insights.diaper.averageCountPerDay,
+            )}회`}
+            sub={`소변 ${insights.diaper.peeCount} · 대변 ${insights.diaper.poopCount}`}
+            bars={dailyBars.diaper}
+            max={Math.max(1, ...dailyBars.diaper)}
+            days={dailyBars.days}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
+function InsightCard({
+  type,
+  title,
+  headline,
+  sub,
+  bars,
+  max,
+  days,
+  formatter,
+}: InsightCardProps) {
+  const tone = insightTone[type];
+
   return (
-    <View style={styles.metricCard}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricDetail}>{detail}</Text>
+    <View style={styles.insightCard}>
+      <View style={styles.cardTitleRow}>
+        <View style={[styles.typeDot, { backgroundColor: tone.color }]} />
+        <Text style={styles.cardLabel}>{title}</Text>
+      </View>
+      <Text style={styles.cardHeadline}>{headline}</Text>
+      <Text style={styles.cardSub}>{sub}</Text>
+
+      <View style={styles.chart}>
+        {bars.map((value, index) => {
+          const isToday = index === bars.length - 1;
+          const heightPercent = Math.max(6, Math.round((value / max) * 100));
+
+          return (
+            <View key={`${days[index]}-${index}`} style={styles.barSlot}>
+              <View style={styles.barTrack}>
+                <View
+                  style={[
+                    styles.bar,
+                    {
+                      height: `${heightPercent}%`,
+                      backgroundColor: isToday ? tone.color : tone.soft,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={[styles.dayLabel, isToday && styles.dayLabelActive]}>
+                {days[index]}
+              </Text>
+              <Text style={styles.barValue}>
+                {formatter === undefined ? value : formatter(value)}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
+}
+
+function createDailyInsightBars(logs: readonly BabyLog[], now: string) {
+  const days = createRecentDateKeys(now);
+  const feed = days.map((day) =>
+    logs.filter((log) => getDateKey(log.recorded_at) === day.key).filter(
+      (log) => log.log_type === 'feeding',
+    ).length,
+  );
+  const diaper = days.map((day) =>
+    logs.filter((log) => getDateKey(log.recorded_at) === day.key).filter(
+      (log) => log.log_type === 'diaper_pee' || log.log_type === 'diaper_poop',
+    ).length,
+  );
+  const sleep = days.map((day) =>
+    sumCompletedSleepMinutes(
+      logs
+        .filter((log) => getDateKey(log.recorded_at) === day.key)
+        .sort(
+          (left, right) =>
+            new Date(left.recorded_at).getTime() -
+            new Date(right.recorded_at).getTime(),
+        ),
+    ),
+  );
+
+  return {
+    days: days.map((day) => day.weekday),
+    feed,
+    sleep,
+    diaper,
+  };
+}
+
+function createRecentDateKeys(now: string) {
+  const nowDate = new Date(now);
+  const end = new Date(
+    nowDate.getFullYear(),
+    nowDate.getMonth(),
+    nowDate.getDate(),
+  );
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(end);
+    date.setDate(end.getDate() - (6 - index));
+    const key = getDateKey(date.toISOString());
+    const weekday = new Intl.DateTimeFormat('ko-KR', {
+      weekday: 'short',
+    }).format(date);
+
+    return { key, weekday };
+  });
+}
+
+function sumCompletedSleepMinutes(logs: readonly BabyLog[]): number {
+  let lastSleepStart: BabyLog | null = null;
+  let totalMinutes = 0;
+
+  logs.forEach((log) => {
+    if (log.log_type === 'sleep_start') {
+      lastSleepStart = log;
+      return;
+    }
+
+    if (log.log_type !== 'sleep_end' || lastSleepStart === null) {
+      return;
+    }
+
+    totalMinutes += Math.max(
+      0,
+      Math.round(
+        (new Date(log.recorded_at).getTime() -
+          new Date(lastSleepStart.recorded_at).getTime()) /
+          60000,
+      ),
+    );
+    lastSleepStart = null;
+  });
+
+  return totalMinutes;
+}
+
+function getDateKey(recordedAt: string): string {
+  const date = new Date(recordedAt);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 function formatDateKey(dateKey: string): string {
@@ -149,7 +297,7 @@ function formatAmount(amount: number, unit: string | null): string {
     return '0';
   }
 
-  return `${amount}${unit}`;
+  return `${formatAverage(amount)}${unit}`;
 }
 
 function formatAverage(value: number): string {
@@ -161,8 +309,9 @@ function formatDuration(totalMinutes: number): string {
     return '0분';
   }
 
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
+  const roundedMinutes = Math.round(totalMinutes);
+  const hours = Math.floor(roundedMinutes / 60);
+  const minutes = roundedMinutes % 60;
 
   if (hours === 0) {
     return `${minutes}분`;
@@ -178,127 +327,161 @@ function formatDuration(totalMinutes: number): string {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.bg,
   },
   container: {
-    paddingHorizontal: 20,
     paddingTop: 28,
-    paddingBottom: 32,
-    backgroundColor: theme.colors.background,
+    paddingBottom: 40,
+    backgroundColor: theme.colors.bg,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 18,
   },
   eyebrow: {
-    color: theme.colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
+    color: theme.colors.accent,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.4,
   },
   title: {
-    marginTop: 8,
-    color: theme.colors.text,
-    fontSize: 30,
-    fontWeight: '800',
-  },
-  statusPill: {
-    minWidth: 88,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  statusText: {
-    color: theme.colors.primary,
-    fontSize: 13,
+    marginTop: 10,
+    color: theme.colors.ink,
+    fontSize: 26,
     fontWeight: '700',
-    textAlign: 'center',
+    letterSpacing: 0,
+  },
+  subtitle: {
+    marginTop: 4,
+    color: theme.colors.ink3,
+    fontSize: 13,
+    fontWeight: '500',
   },
   errorText: {
-    marginTop: 12,
+    marginHorizontal: 24,
+    marginBottom: 12,
     color: '#B42318',
     fontSize: 13,
     fontWeight: '700',
   },
-  rangePanel: {
-    marginTop: 24,
-    borderRadius: 8,
+  noticeCard: {
+    marginHorizontal: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.line,
     backgroundColor: theme.colors.surface,
-    padding: 16,
+    padding: 14,
   },
-  rangeLabel: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '800',
+  noticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
   },
-  rangeDescription: {
-    marginTop: 6,
-    color: theme.colors.muted,
+  noticeBadge: {
+    overflow: 'hidden',
+    borderRadius: theme.radii.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.line,
+    backgroundColor: theme.colors.surfaceSunk,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    color: theme.colors.ink3,
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  noticeTitle: {
+    color: theme.colors.ink,
     fontSize: 13,
     fontWeight: '600',
-    lineHeight: 18,
   },
-  section: {
-    marginTop: 28,
-  },
-  sectionTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  nextActionPanel: {
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#BFD8CC',
-    backgroundColor: '#EDF6F1',
-    padding: 16,
-  },
-  nextActionTitle: {
-    color: theme.colors.primary,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  nextActionDescription: {
-    marginTop: 8,
-    color: theme.colors.text,
+  noticeBody: {
+    color: theme.colors.ink2,
     fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
+    fontWeight: '500',
+    lineHeight: 21,
   },
-  metricGrid: {
-    marginTop: 12,
+  noticeFootnote: {
+    marginTop: 8,
+    color: theme.colors.ink4,
+    fontSize: 11,
+    fontWeight: '500',
+    lineHeight: 16,
+  },
+  cardStack: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
     gap: 12,
   },
-  metricCard: {
-    borderRadius: 8,
+  insightCard: {
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.line,
     backgroundColor: theme.colors.surface,
     padding: 16,
   },
-  metricLabel: {
-    color: theme.colors.muted,
-    fontSize: 13,
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  typeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  cardLabel: {
+    color: theme.colors.ink3,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  cardHeadline: {
+    color: theme.colors.ink,
+    fontSize: 18,
     fontWeight: '700',
+    letterSpacing: 0,
   },
-  metricValue: {
-    marginTop: 6,
-    color: theme.colors.text,
-    fontSize: 26,
-    fontWeight: '800',
+  cardSub: {
+    marginTop: 3,
+    color: theme.colors.ink3,
+    fontSize: 12,
+    fontWeight: '500',
   },
-  metricDetail: {
-    marginTop: 6,
-    color: theme.colors.muted,
-    fontSize: 13,
+  chart: {
+    height: 92,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 4,
+    marginTop: 14,
+  },
+  barSlot: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  barTrack: {
+    width: '100%',
+    height: 56,
+    justifyContent: 'flex-end',
+  },
+  bar: {
+    width: '100%',
+    minHeight: 3,
+    borderRadius: 3,
+  },
+  dayLabel: {
+    color: theme.colors.ink4,
+    fontSize: 9,
+    fontWeight: '500',
+  },
+  dayLabelActive: {
+    color: theme.colors.ink2,
     fontWeight: '600',
-    lineHeight: 18,
+  },
+  barValue: {
+    color: theme.colors.ink4,
+    fontSize: 9,
+    fontWeight: '500',
   },
 });
