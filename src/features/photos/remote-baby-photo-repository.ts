@@ -102,6 +102,22 @@ export async function getRemoteBabyPhotoDownloadUrl(
   return downloadUrl;
 }
 
+export async function deleteRemoteBabyPhoto(
+  client: SupabaseClient,
+  mediaAssetId: string,
+): Promise<void> {
+  const { error } = (await client.functions.invoke("media-r2-url", {
+    body: {
+      action: "delete_photo",
+      media_asset_id: mediaAssetId,
+    },
+  })) as FunctionInvokeResult<unknown>;
+
+  if (error !== null) {
+    throw new Error(error.message);
+  }
+}
+
 export async function listUploadedRemoteBabyPhotoAssets(
   client: SupabaseClient,
   mapping: RemoteFamilyMapping,

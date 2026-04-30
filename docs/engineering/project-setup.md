@@ -176,6 +176,17 @@ PR-19 기준으로 사진 원격 업로드 실패는 `AsyncStorage` queue에 저
 - 재시도 성공 시 queue item을 삭제하고 로컬 사진 metadata의 `remote_status`를 `uploaded`로 갱신한다.
 - 백그라운드 자동 재시도와 R2 orphan 정리는 후속 작업으로 둔다.
 
+## 사진 삭제와 R2 정리
+
+SPEC-PHOTO-006 기준으로 사진 삭제는 local-first 흐름을 유지하면서 원격 정리를 이어서 시도한다.
+
+- 사용자가 사진 삭제를 확인하면 앱은 로컬 `AsyncStorage` metadata와 같은 사진의 원격 업로드 queue item을 먼저 제거한다.
+- 삭제 대상에 `remote_media_asset_id`가 있으면 앱은 `media-r2-url` Edge Function의 `delete_photo` action을 호출한다.
+- Edge Function은 사용자 Auth header로 Supabase RLS를 적용해 `media_assets` 접근 권한을 확인한다.
+- Edge Function은 R2 signed `DELETE` 요청으로 object를 삭제한 뒤 `media_assets.status`를 `deleted`로 갱신한다.
+- 원격 삭제 실패는 로컬 사진 목록 표시를 막지 않고 사용자 메시지로 알린다.
+- 실제 R2 object 삭제 검증은 Cloudflare R2 bucket과 배포된 Edge Function이 필요하므로 수동 검증으로 둔다.
+
 ## 완료된 세팅
 
 - Node 버전 파일 `.nvmrc`를 추가했다.
@@ -193,6 +204,7 @@ PR-19 기준으로 사진 원격 업로드 실패는 `AsyncStorage` queue에 저
 6. PR-17에서 R2 signed URL 기반 사진 원격 저장 1차를 추가한다.
 7. PR-18에서 원격 `media_assets` 조회와 signed download URL 표시를 추가한다.
 8. PR-19에서 사진 원격 업로드 실패 재시도 queue를 추가한다.
+9. SPEC-PHOTO-006에서 사진 삭제와 R2 object 정리 경로를 추가한다.
 
 ## 초기 도메인 모듈
 

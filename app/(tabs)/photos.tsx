@@ -2,7 +2,9 @@ import { useCallback, useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from 'expo-router';
 import {
+  Alert,
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,6 +29,7 @@ import {
   remoteFamilyMappingRepository,
 } from '../../src/features/family';
 import {
+  deleteBabyPhotoWithRemoteCleanup,
   loadBabyPhotosWithRemoteDownloads,
   localBabyPhotoRepository,
   saveBabyPhotoWithRemoteUpload,
@@ -234,6 +237,67 @@ export default function PhotosScreen() {
     }
   }
 
+  function handleRequestDeletePhoto(photo: BabyPhoto) {
+    Alert.alert('사진 삭제', '이 사진을 삭제할까요?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: () => {
+          void handleDeletePhoto(photo);
+        },
+      },
+    ]);
+  }
+
+  async function handleDeletePhoto(photo: BabyPhoto) {
+    setStatusMessage('');
+    setErrorMessage('');
+
+    try {
+      const result = await deleteBabyPhotoWithRemoteCleanup(photo, {
+        localRepository: localBabyPhotoRepository,
+        mappingRepository: remoteFamilyMappingRepository,
+      });
+
+      setPhotos((currentPhotos) =>
+        currentPhotos.filter((currentPhoto) => currentPhoto.id !== photo.id),
+      );
+      setStatusMessage(
+        result.remoteDeleteStatus === 'pending'
+          ? '사진을 삭제했습니다. 원격 저장소 정리를 진행 중입니다.'
+          : '사진을 삭제했습니다.',
+      );
+
+      result.remoteDelete
+        ?.then((status) => {
+          if (status === 'deleted') {
+            setStatusMessage('사진과 원격 원본을 삭제했습니다.');
+          }
+
+          if (status === 'skipped') {
+            setStatusMessage('사진을 삭제했습니다.');
+          }
+
+          if (status === 'failed') {
+            setStatusMessage('');
+            setErrorMessage(
+              '사진은 삭제했지만 원격 원본 정리는 완료하지 못했습니다.',
+            );
+          }
+        })
+        .catch(() => {
+          setStatusMessage('');
+          setErrorMessage(
+            '사진은 삭제했지만 원격 원본 정리는 완료하지 못했습니다.',
+          );
+        });
+    } catch {
+      setErrorMessage('사진을 삭제하지 못했습니다.');
+      setStatusMessage('');
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -344,6 +408,15 @@ export default function PhotosScreen() {
                       {formatPhotoTime(photo.captured_at)}
                     </Text>
                   </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="사진 삭제"
+                    hitSlop={8}
+                    onPress={() => handleRequestDeletePhoto(photo)}
+                    style={styles.photoDeleteButton}
+                  >
+                    <Text style={styles.photoDeleteText}>삭제</Text>
+                  </Pressable>
                 </View>
               ))}
             </View>
@@ -517,5 +590,21 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
+  },
+  photoDeleteButton: {
+    position: 'absolute',
+    top: theme.spacing[2],
+    right: theme.spacing[2],
+    minHeight: 28,
+    paddingHorizontal: theme.spacing[2],
+    borderRadius: theme.radii.pill,
+    backgroundColor: 'rgba(26,24,22,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoDeleteText: {
+    color: theme.colors.white,
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

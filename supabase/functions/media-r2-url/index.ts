@@ -3,16 +3,23 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.1";
 type Action =
   | "create_upload"
   | "complete_upload"
-  | "create_download";
+  | "create_download"
+  | "delete_photo";
 
 type MediaAssetRow = {
   id: string;
   family_id: string;
   child_id: string;
+  asset_type: string;
   bucket: string;
   object_key: string;
   status: string;
   mime_type: string | null;
+};
+
+type RpcResult<T> = {
+  data: T | null;
+  error: { message: string } | null;
 };
 
 const corsHeaders = {
@@ -55,7 +62,13 @@ Deno.serve(async (request) => {
       return json(result, 200);
     }
 
-    const result = await createDownload(body, supabase);
+    if (action === "create_download") {
+      const result = await createDownload(body, supabase);
+
+      return json(result, 200);
+    }
+
+    const result = await deletePhoto(body, supabase);
 
     return json(result, 200);
   } catch (error) {
@@ -160,7 +173,9 @@ async function createDownload(
   const mediaAssetId = readString(body.media_asset_id, "media_asset_id");
   const { data, error } = await supabase
     .from("media_assets")
-    .select("id, family_id, child_id, bucket, object_key, status, mime_type")
+    .select(
+      "id, family_id, child_id, asset_type, bucket, object_key, status, mime_type",
+    )
     .eq("id", mediaAssetId)
     .single<MediaAssetRow>();
 
@@ -189,6 +204,81 @@ async function createDownload(
   };
 }
 
+async function deletePhoto(
+  body: Record<string, unknown>,
+  supabase: ReturnType<typeof createUserScopedSupabaseClient>,
+) {
+  const mediaAssetId = readString(body.media_asset_id, "media_asset_id");
+  const { data, error } = await supabase
+    .from("media_assets")
+    .select(
+      "id, family_id, child_id, asset_type, bucket, object_key, status, mime_type",
+    )
+    .eq("id", mediaAssetId)
+    .single<MediaAssetRow>();
+
+  if (error !== null) {
+    throw new Error(error.message);
+  }
+
+  if (data.asset_type !== "photo") {
+    throw new Error("media_asset_not_photo");
+  }
+
+  await assertCanDeleteMediaAsset(supabase, data.family_id);
+
+  if (data.status === "deleted") {
+    return {
+      media_asset_id: data.id,
+      status: "deleted",
+    };
+  }
+
+  const now = new Date();
+  const deleteUrl = await createR2SignedUrl({
+    bucket: data.bucket,
+    expiresInSeconds: readExpirySeconds(),
+    method: "DELETE",
+    objectKey: data.object_key,
+    now,
+  });
+  const deleteResponse = await fetch(deleteUrl, { method: "DELETE" });
+
+  if (!deleteResponse.ok) {
+    throw new Error("r2_delete_failed");
+  }
+
+  const { data: updatedAsset, error: updateError } = await supabase
+    .from("media_assets")
+    .update({ status: "deleted" })
+    .eq("id", mediaAssetId)
+    .select("id, object_key, status")
+    .single();
+
+  if (updateError !== null) {
+    throw new Error(updateError.message);
+  }
+
+  return updatedAsset;
+}
+
+async function assertCanDeleteMediaAsset(
+  supabase: ReturnType<typeof createUserScopedSupabaseClient>,
+  familyId: string,
+): Promise<void> {
+  const { data, error } = (await supabase.rpc("is_family_parent", {
+    target_family_id: familyId,
+  })) as RpcResult<boolean>;
+
+  if (error !== null) {
+    throw new Error(error.message);
+  }
+
+  if (data !== true) {
+    throw new Error("forbidden");
+  }
+}
+
 function readAction(body: unknown): Action {
   if (typeof body !== "object" || body === null) {
     throw new Error("invalid_body");
@@ -199,7 +289,8 @@ function readAction(body: unknown): Action {
   if (
     action !== "create_upload" &&
     action !== "complete_upload" &&
-    action !== "create_download"
+    action !== "create_download" &&
+    action !== "delete_photo"
   ) {
     throw new Error("invalid_action");
   }
@@ -245,7 +336,7 @@ function getFileExtension(fileName: string | null, mimeType: string): string {
 async function createR2SignedUrl(input: {
   bucket: string;
   objectKey: string;
-  method: "GET" | "PUT";
+  method: "DELETE" | "GET" | "PUT";
   expiresInSeconds: number;
   now: Date;
 }): Promise<string> {

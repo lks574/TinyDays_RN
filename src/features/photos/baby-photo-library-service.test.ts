@@ -154,5 +154,8 @@ function createMemoryPhotoRepository(photos: BabyPhoto[]): BabyPhotoRepository {
   return {
     listPhotos: jest.fn(async () => photos),
     savePhoto: jest.fn(async (nextPhoto) => [nextPhoto, ...photos]),
+    deletePhoto: jest.fn(async (photoId) =>
+      photos.filter((photo) => photo.id !== photoId),
+    ),
   };
 }

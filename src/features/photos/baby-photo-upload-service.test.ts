@@ -317,6 +317,11 @@ function createMemoryPhotoRepository(): BabyPhotoRepository & {
       savedPhotos.push(nextPhoto);
       return [nextPhoto];
     }),
+    deletePhoto: jest.fn(async (photoId) => {
+      const remainingPhotos = savedPhotos.filter((photo) => photo.id !== photoId);
+      savedPhotos.splice(0, savedPhotos.length, ...remainingPhotos);
+      return savedPhotos;
+    }),
   };
 }
 

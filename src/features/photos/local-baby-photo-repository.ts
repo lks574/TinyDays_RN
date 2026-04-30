@@ -12,6 +12,7 @@ const BABY_PHOTOS_STORAGE_KEY = "tinydays:baby_photos";
 export type BabyPhotoRepository = {
   listPhotos: () => Promise<BabyPhoto[]>;
   savePhoto: (photo: BabyPhoto) => Promise<BabyPhoto[]>;
+  deletePhoto: (photoId: string) => Promise<BabyPhoto[]>;
 };
 
 export function createLocalBabyPhotoRepository(
@@ -45,6 +46,26 @@ export function createLocalBabyPhotoRepository(
       );
 
       return saveOperation;
+    },
+    async deletePhoto(photoId) {
+      const deleteOperation = pendingSave.then(async () => {
+        const photos = await readPhotos(storage);
+        const nextPhotos = photos.filter((photo) => photo.id !== photoId);
+
+        await storage.setItem(
+          BABY_PHOTOS_STORAGE_KEY,
+          JSON.stringify(nextPhotos),
+        );
+
+        return nextPhotos;
+      });
+
+      pendingSave = deleteOperation.then(
+        () => undefined,
+        () => undefined,
+      );
+
+      return deleteOperation;
     },
   };
 }

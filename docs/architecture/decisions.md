@@ -220,16 +220,16 @@ PR-15에서는 로그인한 사용자의 첫 원격 가족, 첫 `parent` 구성�
 
 상태: 채택
 
-PR-17에서는 모바일 앱이 R2 access key를 직접 갖지 않고 Supabase Edge Function `media-r2-url`을 통해 signed upload/download URL을 받습니다. Edge Function은 앱에서 전달한 Supabase Auth `Authorization` header로 사용자 scope의 Supabase client를 만들고, `media_assets` 접근은 기존 RLS로 검증합니다.
+PR-17에서는 모바일 앱이 R2 access key를 직접 갖지 않고 Supabase Edge Function `media-r2-url`을 통해 signed upload/download URL을 받습니다. SPEC-PHOTO-006부터 같은 Edge Function이 사진 삭제 시 R2 signed `DELETE` 요청도 처리합니다. Edge Function은 앱에서 전달한 Supabase Auth `Authorization` header로 사용자 scope의 Supabase client를 만들고, `media_assets` 접근은 기존 RLS로 검증합니다.
 
 근거:
 
 - R2 secret을 모바일 앱에 포함하면 private bucket 접근 권한이 노출됩니다.
 - Supabase `media_assets` RLS가 가족 구성원 여부와 `parent` 쓰기 권한을 이미 검증합니다.
-- 앱은 로컬 사진 metadata를 먼저 저장해 기존 local-first 흐름을 유지하고, 원격 업로드 실패를 사진 추가 실패로 만들지 않습니다.
+- 앱은 로컬 사진 metadata를 먼저 저장/삭제해 기존 local-first 흐름을 유지하고, 원격 업로드/삭제 실패를 로컬 사진 목록 실패로 만들지 않습니다.
 
 제약:
 
 - Edge Function 배포와 R2 환경 변수 설정이 필요합니다.
-- PR-17은 원격 업로드 retry queue, 사진 삭제 시 R2 object 삭제, 썸네일 생성은 포함하지 않습니다.
+- PR-17은 원격 업로드 retry queue와 썸네일 생성은 포함하지 않습니다. 사진 삭제 시 R2 object 삭제는 SPEC-PHOTO-006에서 추가합니다.
 - `media_assets`에는 object key와 metadata만 저장하고 원본 binary는 저장하지 않습니다.

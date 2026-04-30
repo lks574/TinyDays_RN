@@ -51,6 +51,23 @@ describe("createLocalBabyPhotoRepository", () => {
     );
   });
 
+  it("deletes a photo by id and keeps the remaining photos", async () => {
+    const olderPhoto = createPhoto("older", "2026-04-28T01:00:00.000Z");
+    const newerPhoto = createPhoto("newer", "2026-04-28T02:00:00.000Z");
+    const storage = createMemoryStorage(
+      JSON.stringify([newerPhoto, olderPhoto]),
+    );
+    const repository = createLocalBabyPhotoRepository(storage);
+
+    await expect(repository.deletePhoto("newer")).resolves.toEqual([
+      olderPhoto,
+    ]);
+    expect(storage.setItem).toHaveBeenCalledWith(
+      "tinydays:baby_photos",
+      JSON.stringify([olderPhoto]),
+    );
+  });
+
   it("recovers with an empty list when stored JSON is invalid", async () => {
     const repository = createLocalBabyPhotoRepository(createMemoryStorage("{"));
 

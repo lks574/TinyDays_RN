@@ -1,25 +1,40 @@
 # 다음 작업
 
-## 사진 삭제와 R2 정리
+## SPEC-FAMILY-004 가족 초대와 구성원 연결 1차
 
 상태: 대기
 
 이유:
 
-- PR-19에서 사진 원격 업로드 실패 재시도 queue를 추가했다.
-- 남은 사진 백엔드 리스크는 사용자가 사진을 삭제할 때 로컬 metadata, Supabase `media_assets`, R2 object 상태가 분리될 수 있다는 점이다.
-- 실환경 Supabase/R2 검증은 `docs/specs/SPEC-PHOTO-004/manual-test.md`로 보류하고, 개발은 사진 lifecycle의 다음 필수 흐름인 삭제/정리로 이어간다.
+- MVP 필수 기능에 `가족 구성원 초대`가 남아 있다.
+- 현재 백엔드는 원격 가족 bootstrap, `family_members` RLS, `parent`/`family` 역할까지 준비되어 있지만, 다른 사용자가 가족에 합류하는 안전한 초대 경로는 없다.
+- 기록 백업, 사진 R2 저장/조회/삭제는 원격 family mapping을 전제로 하므로 가족 구성원 합류 경로를 먼저 닫아야 실제 가족 공유 검증으로 넘어갈 수 있다.
+- `SPEC-PHOTO-006` 실환경 수동 검증은 나중에 Supabase/R2 환경 검증 작업으로 한꺼번에 수행한다.
 
 예상 범위:
 
-- 로컬 사진 metadata 삭제 경로를 추가한다.
-- 원격 사진은 Supabase `media_assets.status = deleted`로 갱신한다.
-- R2 object 삭제는 Edge Function에서 가족 권한 확인 후 처리한다.
-- 원격 삭제 실패가 로컬 사진 목록 동작을 깨지 않게 한다.
-- 실제 R2 object 삭제 실환경 검증은 별도 수동 검증으로 둔다.
+- Supabase에 가족 초대용 최소 모델을 추가한다.
+  - 예: `family_invites` 또는 `invite_code` 기반 RPC.
+- `parent`만 초대를 만들 수 있게 RLS/RPC 권한을 제한한다.
+- 초대 수락 시 authenticated 사용자를 해당 `family_members`에 `family` 역할로 추가한다.
+- 앱은 초대 코드 입력 또는 수락 경로로 원격 family/child/member mapping을 저장한다.
+- 기존 로컬 family context와 기록/사진 local-first 흐름은 깨지지 않게 유지한다.
+- 초대 취소, 만료, 재발급, 멤버 제거 고도화는 필요한 경우 후속 작업으로 분리한다.
+
+남은 백엔드 작업 체크:
+
+- [ ] 가족 초대/구성원 연결 1차.
+- [ ] 가족 구성원 목록 조회와 역할 표시를 원격 `family_members` 기준으로 보강.
+- [ ] 구성원 제거 또는 초대 취소 정책 확정.
+- [ ] `baby_logs` 원격 pull/downsync와 다중 기기 조회.
+- [ ] `baby_logs`/사진 metadata의 Expo SQLite 이전과 sync queue 통합.
+- [ ] 사진 signed URL 캐시와 만료 후 갱신.
+- [ ] 사진 썸네일 생성과 파생 object lifecycle.
+- [ ] 백그라운드 업로드/삭제 재시도와 R2 orphan 정리.
+- [ ] Supabase/R2 실환경 수동 검증 묶음 수행.
 
 바로 실행할 요청 예:
 
 ```txt
-td:auto SPEC-PHOTO-006 사진 삭제와 R2 정리 진행해줘
+td:auto SPEC-FAMILY-004 가족 초대와 구성원 연결 1차 진행해줘
 ```
