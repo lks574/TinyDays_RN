@@ -4,6 +4,7 @@ import {
   createRemoteFamilyMapping,
   normalizeRemoteFamilyBootstrapResult,
   normalizeRemoteFamilyInvite,
+  normalizeRemoteFamilyMembers,
   normalizeRemoteFamilyMapping,
 } from ".";
 
@@ -78,5 +79,52 @@ describe("remote family normalization", () => {
       expires_at: "2026-05-07T00:00:00.000Z",
     });
     expect(normalizeRemoteFamilyInvite({ code: "A1B2C3D4" })).toBeNull();
+  });
+
+  it("normalizes remote family member values", () => {
+    expect(
+      normalizeRemoteFamilyMembers([
+        {
+          id: "member-1",
+          family_id: "family-1",
+          user_id: "user-1",
+          name: "보호자",
+          role: "parent",
+        },
+        {
+          id: "member-2",
+          family_id: "family-1",
+          user_id: "user-2",
+          name: "이모",
+          role: "family",
+        },
+      ]),
+    ).toEqual([
+      {
+        id: "member-1",
+        family_id: "family-1",
+        user_id: "user-1",
+        name: "보호자",
+        role: "parent",
+      },
+      {
+        id: "member-2",
+        family_id: "family-1",
+        user_id: "user-2",
+        name: "이모",
+        role: "family",
+      },
+    ]);
+    expect(
+      normalizeRemoteFamilyMembers([
+        {
+          id: "member-3",
+          family_id: "family-1",
+          user_id: "user-3",
+          name: "관리자",
+          role: "admin",
+        },
+      ]),
+    ).toBeNull();
   });
 });

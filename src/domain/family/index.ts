@@ -21,9 +21,12 @@ export {
   createRemoteFamilyMapping,
   normalizeRemoteFamilyBootstrapResult,
   normalizeRemoteFamilyInvite,
+  normalizeRemoteFamilyMember,
+  normalizeRemoteFamilyMembers,
   normalizeRemoteFamilyMapping,
   type RemoteFamilyBootstrapInput,
   type RemoteFamilyBootstrapResult,
   type RemoteFamilyInvite,
+  type RemoteFamilyMember,
   type RemoteFamilyMapping,
 } from "./remote-family";

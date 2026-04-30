@@ -30,6 +30,14 @@ export type RemoteFamilyInvite = {
   expires_at: string;
 };
 
+export type RemoteFamilyMember = {
+  id: string;
+  family_id: string;
+  user_id: string;
+  name: string;
+  role: FamilyMemberRole;
+};
+
 export type RemoteFamilyMapping = {
   user_id: string;
   local_family_id: string;
@@ -83,6 +91,32 @@ export function normalizeRemoteFamilyInvite(
   return value;
 }
 
+export function normalizeRemoteFamilyMember(
+  value: unknown,
+): RemoteFamilyMember | null {
+  if (!isRemoteFamilyMember(value)) {
+    return null;
+  }
+
+  return value;
+}
+
+export function normalizeRemoteFamilyMembers(
+  value: unknown,
+): RemoteFamilyMember[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const members = value.map(normalizeRemoteFamilyMember);
+
+  if (members.some((member) => member === null)) {
+    return null;
+  }
+
+  return members as RemoteFamilyMember[];
+}
+
 export function normalizeRemoteFamilyMapping(
   value: unknown,
 ): RemoteFamilyMapping | null {
@@ -131,6 +165,22 @@ function isRemoteFamilyInvite(value: unknown): value is RemoteFamilyInvite {
     typeof candidate.family_id === "string" &&
     typeof candidate.code === "string" &&
     typeof candidate.expires_at === "string"
+  );
+}
+
+function isRemoteFamilyMember(value: unknown): value is RemoteFamilyMember {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.family_id === "string" &&
+    typeof candidate.user_id === "string" &&
+    typeof candidate.name === "string" &&
+    (candidate.role === "parent" || candidate.role === "family")
   );
 }
 

@@ -15,7 +15,9 @@ import {
   createDefaultFamilyContext,
   getSelectedChild,
   type FamilyContext,
+  type FamilyMemberRole,
   type RemoteFamilyInvite,
+  type RemoteFamilyMember,
   type RemoteFamilyMapping,
 } from '../../src/domain/family';
 import { getSupabaseClient, useSupabaseAuth } from '../../src/features/auth';
@@ -24,6 +26,7 @@ import {
   bootstrapRemoteFamily,
   createRemoteFamilyInvite,
   getExistingRemoteFamily,
+  listRemoteFamilyMembers,
   localFamilyContextRepository,
   remoteFamilyMappingRepository,
 } from '../../src/features/family';
@@ -58,9 +61,15 @@ export default function FamilyScreen() {
   const [remoteInvite, setRemoteInvite] = useState<RemoteFamilyInvite | null>(
     null,
   );
+  const [remoteMembers, setRemoteMembers] = useState<
+    readonly RemoteFamilyMember[] | null
+  >(null);
   const [inviteCode, setInviteCode] = useState('');
   const [remoteStatusMessage, setRemoteStatusMessage] = useState('');
   const [remoteErrorMessage, setRemoteErrorMessage] = useState('');
+  const [remoteMembersErrorMessage, setRemoteMembersErrorMessage] =
+    useState('');
+  const [isRemoteMembersLoading, setIsRemoteMembersLoading] = useState(false);
   const [isRemoteLoading, setIsRemoteLoading] = useState(false);
 
   useFocusEffect(
@@ -93,8 +102,10 @@ export default function FamilyScreen() {
     if (auth.session === null) {
       setRemoteMapping(null);
       setRemoteInvite(null);
+      setRemoteMembers(null);
       setRemoteStatusMessage('');
       setRemoteErrorMessage('');
+      setRemoteMembersErrorMessage('');
       return;
     }
 
@@ -103,6 +114,7 @@ export default function FamilyScreen() {
     if (client === null) {
       setRemoteMapping(null);
       setRemoteInvite(null);
+      setRemoteMembers(null);
       return;
     }
 
@@ -156,6 +168,61 @@ export default function FamilyScreen() {
   useEffect(() => {
     void loadRemoteFamilyConnection();
   }, [loadRemoteFamilyConnection]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadRemoteMembers() {
+      if (auth.session === null || remoteMapping === null) {
+        setRemoteMembers(null);
+        setRemoteMembersErrorMessage('');
+        setIsRemoteMembersLoading(false);
+        return;
+      }
+
+      const client = getSupabaseClient();
+
+      if (client === null) {
+        setRemoteMembers(null);
+        setRemoteMembersErrorMessage('');
+        setIsRemoteMembersLoading(false);
+        return;
+      }
+
+      setIsRemoteMembersLoading(true);
+
+      try {
+        const members = await listRemoteFamilyMembers(
+          client,
+          remoteMapping.remote_family_id,
+        );
+
+        if (!isActive) {
+          return;
+        }
+
+        setRemoteMembers(members);
+        setRemoteMembersErrorMessage('');
+      } catch {
+        if (isActive) {
+          setRemoteMembers(null);
+          setRemoteMembersErrorMessage(
+            '원격 구성원 목록을 불러오지 못해 로컬 구성원을 표시합니다.',
+          );
+        }
+      } finally {
+        if (isActive) {
+          setIsRemoteMembersLoading(false);
+        }
+      }
+    }
+
+    void loadRemoteMembers();
+
+    return () => {
+      isActive = false;
+    };
+  }, [auth.session, remoteMapping]);
 
   function syncForm(context: FamilyContext) {
     const child = getSelectedChild(context);
@@ -368,6 +435,8 @@ export default function FamilyScreen() {
     selectedChild.birth_date,
     new Date().toISOString(),
   );
+  const currentUserId = auth.session?.user.id ?? null;
+  const visibleMembers = getVisibleFamilyMembers(familyContext, remoteMembers);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -649,44 +718,67 @@ export default function FamilyScreen() {
         </Section>
 
         <View style={styles.sectionWrap}>
-          <SectionLabel action={<Mono tone="ink4">1명</Mono>}>구성원</SectionLabel>
+          <SectionLabel action={<Mono tone="ink4">{visibleMembers.length}명</Mono>}>
+            구성원
+          </SectionLabel>
+          {remoteMapping !== null ? (
+            <View style={styles.memberStatusPanel}>
+              {isRemoteMembersLoading ? (
+                <Caption tone="ink4">원격 구성원을 불러오는 중</Caption>
+              ) : remoteMembers === null ? (
+                <Caption tone="ink4">로컬 구성원 기준</Caption>
+              ) : (
+                <Caption tone="ink4">원격 가족 구성원 기준</Caption>
+              )}
+              {remoteMembersErrorMessage.length > 0 ? (
+                <Caption tone="temp">{remoteMembersErrorMessage}</Caption>
+              ) : null}
+            </View>
+          ) : null}
           <View style={styles.memberCard}>
-            <ListRow
-              leading={
-                <View style={styles.memberAvatar}>
-                  <Text style={styles.memberAvatarText}>
-                    {getInitial(familyContext.current_member.name)}
-                  </Text>
-                </View>
-              }
-              title={
-                <View style={styles.memberTitleRow}>
-                  <Text style={styles.memberName}>
-                    {familyContext.current_member.name}
-                  </Text>
-                  <Badge tone="soft">나</Badge>
-                </View>
-              }
-              sub="현재 사용자"
-              trailing={
-                <View style={styles.roleBadge}>
-                  <View
-                    style={[
-                      styles.roleDot,
-                      {
-                        backgroundColor: getRoleColor(
-                          familyContext.current_member.role,
-                        ),
-                      },
-                    ]}
-                  />
-                  <Text style={styles.roleText}>
-                    {getRoleLabel(familyContext.current_member.role)}
-                  </Text>
-                </View>
-              }
-              divider={false}
-            />
+            {visibleMembers.map((member, index) => {
+              const isCurrent = isCurrentFamilyMember(
+                member,
+                currentUserId,
+                familyContext.current_member.id,
+              );
+
+              return (
+                <ListRow
+                  key={`${member.source}:${member.id}`}
+                  leading={
+                    <View style={styles.memberAvatar}>
+                      <Text style={styles.memberAvatarText}>
+                        {getInitial(member.name)}
+                      </Text>
+                    </View>
+                  }
+                  title={
+                    <View style={styles.memberTitleRow}>
+                      <Text style={styles.memberName}>{member.name}</Text>
+                      {isCurrent ? <Badge tone="soft">나</Badge> : null}
+                    </View>
+                  }
+                  sub={getMemberSubtitle(member, isCurrent)}
+                  trailing={
+                    <View style={styles.roleBadge}>
+                      <View
+                        style={[
+                          styles.roleDot,
+                          {
+                            backgroundColor: getRoleColor(member.role),
+                          },
+                        ]}
+                      />
+                      <Text style={styles.roleText}>
+                        {getRoleLabel(member.role)}
+                      </Text>
+                    </View>
+                  }
+                  divider={index < visibleMembers.length - 1}
+                />
+              );
+            })}
           </View>
         </View>
 
@@ -732,7 +824,63 @@ function formatDateTime(value: string): string {
   }).format(new Date(value));
 }
 
-function getRoleLabel(role: FamilyContext['current_member']['role']): string {
+type VisibleFamilyMember = {
+  id: string;
+  name: string;
+  role: FamilyMemberRole;
+  source: 'local' | 'remote';
+  userId: string | null;
+};
+
+function getVisibleFamilyMembers(
+  context: FamilyContext,
+  remoteMembers: readonly RemoteFamilyMember[] | null,
+): VisibleFamilyMember[] {
+  if (remoteMembers !== null) {
+    return remoteMembers.map((member) => ({
+      id: member.id,
+      name: member.name,
+      role: member.role,
+      source: 'remote',
+      userId: member.user_id,
+    }));
+  }
+
+  return [
+    {
+      id: context.current_member.id,
+      name: context.current_member.name,
+      role: context.current_member.role,
+      source: 'local',
+      userId: null,
+    },
+  ];
+}
+
+function isCurrentFamilyMember(
+  member: VisibleFamilyMember,
+  currentUserId: string | null,
+  localMemberId: string,
+): boolean {
+  if (member.source === 'local') {
+    return member.id === localMemberId;
+  }
+
+  return currentUserId !== null && member.userId === currentUserId;
+}
+
+function getMemberSubtitle(
+  member: VisibleFamilyMember,
+  isCurrent: boolean,
+): string {
+  if (member.source === 'local') {
+    return '현재 사용자';
+  }
+
+  return isCurrent ? '현재 계정' : '가족 구성원';
+}
+
+function getRoleLabel(role: FamilyMemberRole): string {
   switch (role) {
     case 'parent':
       return 'parent';
@@ -741,7 +889,7 @@ function getRoleLabel(role: FamilyContext['current_member']['role']): string {
   }
 }
 
-function getRoleColor(role: FamilyContext['current_member']['role']): string {
+function getRoleColor(role: FamilyMemberRole): string {
   switch (role) {
     case 'parent':
       return theme.colors.accent;
@@ -839,6 +987,10 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.lg,
     backgroundColor: theme.colors.surface,
     overflow: 'hidden',
+  },
+  memberStatusPanel: {
+    gap: theme.spacing[1],
+    paddingBottom: theme.spacing[2],
   },
   memberAvatar: {
     width: 36,

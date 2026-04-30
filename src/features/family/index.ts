@@ -11,6 +11,7 @@ export {
   acceptRemoteFamilyInvite,
   createRemoteFamilyInvite,
 } from "./remote-family-invite-repository";
+export { listRemoteFamilyMembers } from "./remote-family-member-repository";
 export {
   createRemoteFamilyMappingRepository,
   remoteFamilyMappingRepository,

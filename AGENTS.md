@@ -119,6 +119,7 @@ explore -> plan -> spec -> exec -> validate -> review
 - 제품 범위가 바뀌면 `docs/product/mvp-scope.md`를 업데이트한다.
 - 기술 선택, 데이터 모델, 되돌리기 어려운 구현 방향을 정하면 `docs/architecture/decisions.md`를 업데이트한다.
 - 세팅 명령어나 환경 전제가 바뀌면 `docs/engineering/project-setup.md`를 업데이트한다.
+- Supabase, R2, 실제 계정/session처럼 자동 테스트로 검증하기 어려운 실환경 수동 검증 문서는 `docs/qa/manual-tests/`에 모은다.
 - 문서는 짧고 결정 중심으로 작성한다. 필요하지 않으면 원본 제품 브리프 전체를 중복하지 않는다.
 
 ## Git 규칙
