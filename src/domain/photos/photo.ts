@@ -9,10 +9,15 @@ export type BabyPhoto = {
   file_name: string | null;
   file_size: number | null;
   mime_type: string | null;
+  remote_media_asset_id?: string | null;
+  remote_object_key?: string | null;
+  remote_status?: BabyPhotoRemoteStatus | null;
   captured_at: string;
   created_at: string;
   updated_at: string;
 };
+
+export type BabyPhotoRemoteStatus = "uploading" | "uploaded" | "failed";
 
 export type CreateBabyPhotoInput = {
   family_id: string;
@@ -24,6 +29,9 @@ export type CreateBabyPhotoInput = {
   file_name?: string | null;
   file_size?: number | null;
   mime_type?: string | null;
+  remote_media_asset_id?: string | null;
+  remote_object_key?: string | null;
+  remote_status?: BabyPhotoRemoteStatus | null;
   captured_at?: string;
 };
 
@@ -53,9 +61,30 @@ export function createBabyPhoto(
     file_name: input.file_name ?? null,
     file_size: input.file_size ?? null,
     mime_type: input.mime_type ?? null,
+    remote_media_asset_id: input.remote_media_asset_id ?? null,
+    remote_object_key: input.remote_object_key ?? null,
+    remote_status: input.remote_status ?? null,
     captured_at: input.captured_at ?? options.now,
     created_at: options.now,
     updated_at: options.now,
+  };
+}
+
+export function withBabyPhotoRemoteUpload(
+  photo: BabyPhoto,
+  input: {
+    mediaAssetId: string;
+    objectKey: string;
+    status: BabyPhotoRemoteStatus;
+    now: string;
+  },
+): BabyPhoto {
+  return {
+    ...photo,
+    remote_media_asset_id: input.mediaAssetId,
+    remote_object_key: input.objectKey,
+    remote_status: input.status,
+    updated_at: input.now,
   };
 }
 

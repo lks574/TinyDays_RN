@@ -22,8 +22,14 @@ import {
   type BabyPhoto,
   type BabyPhotoDateGroup,
 } from '../../src/domain/photos';
-import { localFamilyContextRepository } from '../../src/features/family';
-import { localBabyPhotoRepository } from '../../src/features/photos';
+import {
+  localFamilyContextRepository,
+  remoteFamilyMappingRepository,
+} from '../../src/features/family';
+import {
+  localBabyPhotoRepository,
+  saveBabyPhotoWithRemoteUpload,
+} from '../../src/features/photos';
 import {
   Badge,
   Body,
@@ -166,12 +172,46 @@ export default function PhotosScreen() {
     );
 
     try {
-      const nextPhotos = await localBabyPhotoRepository.savePhoto(nextPhoto);
+      const result = await saveBabyPhotoWithRemoteUpload(nextPhoto, {
+        localRepository: localBabyPhotoRepository,
+        mappingRepository: remoteFamilyMappingRepository,
+      });
 
-      setPhotos(nextPhotos);
+      setPhotos(result.photos);
       setPeriodFilter('all');
-      setStatusMessage('사진을 추가했습니다.');
+      setStatusMessage(
+        result.remoteUploadStatus === 'pending'
+          ? '사진을 추가했습니다. 원격 저장을 진행 중입니다.'
+          : '사진을 추가했습니다.',
+      );
       setErrorMessage('');
+      result.remoteUpload
+        ?.then((status) => {
+          if (status === 'uploaded') {
+            setStatusMessage('사진 원본을 원격 저장소에 저장했습니다.');
+            localBabyPhotoRepository
+              .listPhotos()
+              .then(setPhotos)
+              .catch(() => undefined);
+          }
+
+          if (status === 'skipped') {
+            setStatusMessage('사진을 추가했습니다.');
+          }
+
+          if (status === 'failed') {
+            setStatusMessage('');
+            setErrorMessage(
+              '사진은 기기에 저장했지만 원격 저장은 완료하지 못했습니다.',
+            );
+          }
+        })
+        .catch(() => {
+          setStatusMessage('');
+          setErrorMessage(
+            '사진은 기기에 저장했지만 원격 저장은 완료하지 못했습니다.',
+          );
+        });
     } catch {
       setErrorMessage('사진을 저장하지 못했습니다.');
       setStatusMessage('');

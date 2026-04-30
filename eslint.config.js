@@ -9,6 +9,7 @@ module.exports = defineConfig([
       "dist/",
       "docs/design/prototype/",
       "node_modules/",
+      "supabase/functions/",
       "tmp/",
       "web-build/",
     ],

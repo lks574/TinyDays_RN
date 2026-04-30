@@ -349,7 +349,7 @@ PR 작업이 끝나도 커밋 전이면 `진행 중`으로 둔다. 완료 기준
 
 ## PR-17: R2 기반 사진 원격 저장 1차
 
-상태: 대기
+상태: 완료
 
 목표: 가족 사진을 private R2 bucket에 저장하고 Supabase에는 metadata만 남긴다.
 
@@ -366,6 +366,25 @@ PR 작업이 끝나도 커밋 전이면 `진행 중`으로 둔다. 완료 기준
 - Supabase에는 object key와 metadata만 저장된다.
 - 가족 구성원이 아닌 사용자는 접근 URL을 받을 수 없다.
 
+## PR-18: 원격 사진 조회 URL 연결 1차
+
+상태: 대기
+
+목표: 업로드된 원격 사진 metadata를 앱에서 조회하고, 가족 권한 확인 후 signed download URL로 사진을 표시한다.
+
+범위:
+
+- Supabase `media_assets` 조회 repository를 만든다.
+- uploaded 상태의 사진에 대해 signed download URL을 요청한다.
+- 로컬 사진 metadata와 원격 사진 metadata를 같은 사진 탭 목록에 합친다.
+- URL 만료, 캐시, 썸네일 최적화는 단순하게 처리한다.
+
+완료 기준:
+
+- 로그인 및 원격 가족 mapping이 있는 사용자는 원격 `media_assets` 사진을 사진 탭에서 볼 수 있다.
+- 가족 구성원이 아닌 사용자는 download URL을 받을 수 없다.
+- 원격 조회 실패가 기존 로컬 사진 목록 표시를 막지 않는다.
+
 ## 추천 진행 순서
 
 1. PR-01부터 PR-06까지 진행해 핵심 기록 루프를 검증한다.
@@ -375,3 +394,4 @@ PR 작업이 끝나도 커밋 전이면 `진행 중`으로 둔다. 완료 기준
 5. PR-12에서 사진 업로드를 붙인다.
 6. PR-13에서 Supabase schema/RLS를 만든다.
 7. PR-14부터 PR-17까지 Auth, 원격 가족 bootstrap, 기록 백업, R2 사진 저장을 순서대로 붙인다.
+8. PR-18에서 원격 사진 조회와 signed download URL 표시를 연결한다.

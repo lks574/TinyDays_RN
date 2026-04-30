@@ -89,6 +89,9 @@ function isBabyPhoto(value: unknown): value is BabyPhoto {
     isNullableString(candidate.file_name) &&
     isNullableNumber(candidate.file_size) &&
     isNullableString(candidate.mime_type) &&
+    isOptionalNullableString(candidate.remote_media_asset_id) &&
+    isOptionalNullableString(candidate.remote_object_key) &&
+    isOptionalRemoteStatus(candidate.remote_status) &&
     typeof candidate.captured_at === "string" &&
     typeof candidate.created_at === "string" &&
     typeof candidate.updated_at === "string"
@@ -101,4 +104,18 @@ function isNullableString(value: unknown): value is string | null {
 
 function isNullableNumber(value: unknown): value is number | null {
   return typeof value === "number" || value === null;
+}
+
+function isOptionalNullableString(value: unknown): value is string | null | undefined {
+  return value === undefined || isNullableString(value);
+}
+
+function isOptionalRemoteStatus(value: unknown): boolean {
+  return (
+    value === undefined ||
+    value === null ||
+    value === "uploading" ||
+    value === "uploaded" ||
+    value === "failed"
+  );
 }

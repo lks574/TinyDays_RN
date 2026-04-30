@@ -135,6 +135,28 @@ PR-15 기준으로 로그인한 사용자는 가족 탭에서 현재 로컬 가�
 - 원격 bootstrap 성공 후에도 기록과 사진은 기존 로컬 저장소에 먼저 저장된다.
 - PR-16 `baby_logs` 클라우드 백업은 이 mapping record를 사용해 원격 UUID로 변환한다.
 
+## R2 사진 원격 저장
+
+PR-17 기준으로 사진 원본 원격 저장은 Supabase Edge Function `media-r2-url`이 담당한다.
+
+- 앱은 사진 metadata를 `AsyncStorage`에 먼저 저장한다.
+- Supabase session과 원격 family mapping이 있으면 앱은 Edge Function에 upload plan을 요청한다.
+- Edge Function은 사용자 Auth header로 Supabase RLS를 적용해 `media_assets` draft row를 만들고 R2 signed upload URL을 반환한다.
+- 앱이 R2 PUT 업로드를 완료하면 Edge Function에 완료를 알리고 `media_assets.status`를 `uploaded`로 갱신한다.
+- Supabase에는 `bucket`, `object_key`, 파일 metadata만 저장하고 원본 binary는 저장하지 않는다.
+
+Edge Function 환경 변수:
+
+```sh
+R2_BUCKET=tinydays-media-dev
+R2_S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=replace-with-r2-access-key
+R2_SECRET_ACCESS_KEY=replace-with-r2-secret-key
+R2_SIGNED_URL_EXPIRES_SECONDS=600
+```
+
+로컬 또는 원격 Supabase Function 배포 전에는 위 값과 Supabase 기본 환경 변수 `SUPABASE_URL`, `SUPABASE_ANON_KEY`가 필요하다. R2 secret은 Expo public env나 모바일 앱에 넣지 않는다.
+
 ## 완료된 세팅
 
 - Node 버전 파일 `.nvmrc`를 추가했다.
@@ -149,6 +171,7 @@ PR-15 기준으로 로그인한 사용자는 가족 탭에서 현재 로컬 가�
 3. 아기 기록과 자연어 파서 초기 도메인 모듈을 만든다.
 4. 기록 수정/삭제, 날짜별 조회, sync queue가 필요해지면 `baby_logs`부터 Expo SQLite로 이전한다.
 5. PR-16에서 `baby_logs` 클라우드 백업과 최소 재시도 queue를 추가한다.
+6. PR-17에서 R2 signed URL 기반 사진 원격 저장 1차를 추가한다.
 
 ## 초기 도메인 모듈
 
