@@ -215,6 +215,12 @@ export default function PhotosScreen() {
               '사진은 기기에 저장했지만 원격 저장은 완료하지 못했습니다.',
             );
           }
+
+          if (status === 'queued') {
+            setStatusMessage(
+              '사진은 기기에 저장했고 원격 저장은 나중에 다시 시도합니다.',
+            );
+          }
         })
         .catch(() => {
           setStatusMessage('');

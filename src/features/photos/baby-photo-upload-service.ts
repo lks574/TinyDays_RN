@@ -14,8 +14,14 @@ import {
   completeRemoteBabyPhotoUpload,
   createRemoteBabyPhotoUpload,
 } from "./remote-baby-photo-repository";
+import {
+  createRemoteBabyPhotoUploadQueueItem,
+  remoteBabyPhotoUploadQueueRepository,
+  type RemoteBabyPhotoUploadQueueItem,
+  type RemoteBabyPhotoUploadQueueRepository,
+} from "./remote-baby-photo-upload-queue-repository";
 
-type RemoteUploadStatus = "uploaded" | "failed" | "skipped";
+type RemoteUploadStatus = "uploaded" | "queued" | "failed" | "skipped";
 type InitialRemoteUploadStatus = "pending" | "skipped";
 
 export type SaveBabyPhotoWithRemoteUploadResult = {
@@ -27,6 +33,7 @@ export type SaveBabyPhotoWithRemoteUploadResult = {
 export type SaveBabyPhotoWithRemoteUploadDependencies = {
   localRepository: BabyPhotoRepository;
   mappingRepository: RemoteFamilyMappingRepository;
+  queueRepository?: RemoteBabyPhotoUploadQueueRepository;
   getClient?: () => SupabaseClient | null;
   requestUploadPlan?: (
     client: SupabaseClient,
@@ -86,44 +93,159 @@ async function runRemoteUpload(
   const uploadFile = dependencies.uploadFile ?? uploadBabyPhotoFile;
   const completeUpload =
     dependencies.completeUpload ?? completeRemoteBabyPhotoUpload;
+  const queueRepository =
+    dependencies.queueRepository ?? remoteBabyPhotoUploadQueueRepository;
   const now = dependencies.now ?? (() => new Date().toISOString());
+
+  await retryQueuedUploads({
+    client,
+    completeUpload,
+    localRepository: dependencies.localRepository,
+    mapping,
+    now,
+    queueRepository,
+    requestUploadPlan,
+    uploadFile,
+    userId,
+  });
+
+  try {
+    await uploadPhotoRemotely({
+      client,
+      completeUpload,
+      localRepository: dependencies.localRepository,
+      now,
+      photo,
+      requestUploadPlan,
+      uploadFile,
+      uploadRequest,
+    });
+
+    return "uploaded";
+  } catch (error) {
+    const attemptAt = now();
+    await queueRepository.saveItem(
+      createRemoteBabyPhotoUploadQueueItem({
+        attemptCount: 1,
+        lastAttemptAt: attemptAt,
+        lastError: getErrorMessage(error),
+        now: attemptAt,
+        photo,
+        userId,
+      }),
+    );
+
+    return "queued";
+  }
+}
+
+async function retryQueuedUploads(options: {
+  client: SupabaseClient;
+  completeUpload: NonNullable<
+    SaveBabyPhotoWithRemoteUploadDependencies["completeUpload"]
+  >;
+  localRepository: BabyPhotoRepository;
+  mapping: NonNullable<
+    Awaited<ReturnType<RemoteFamilyMappingRepository["getMapping"]>>
+  >;
+  now: () => string;
+  queueRepository: RemoteBabyPhotoUploadQueueRepository;
+  requestUploadPlan: NonNullable<
+    SaveBabyPhotoWithRemoteUploadDependencies["requestUploadPlan"]
+  >;
+  uploadFile: NonNullable<
+    SaveBabyPhotoWithRemoteUploadDependencies["uploadFile"]
+  >;
+  userId: string;
+}): Promise<void> {
+  const queuedItems = await options.queueRepository.listItems();
+
+  for (const item of queuedItems) {
+    if (item.user_id !== options.userId) {
+      continue;
+    }
+
+    const uploadRequest = createRemoteBabyPhotoUploadRequest(
+      item.photo,
+      options.mapping,
+      options.userId,
+    );
+
+    if (uploadRequest === null) {
+      continue;
+    }
+
+    try {
+      await uploadPhotoRemotely({
+        client: options.client,
+        completeUpload: options.completeUpload,
+        localRepository: options.localRepository,
+        now: options.now,
+        photo: item.photo,
+        requestUploadPlan: options.requestUploadPlan,
+        uploadFile: options.uploadFile,
+        uploadRequest,
+      });
+      await options.queueRepository.removeItem(item.local_photo_id);
+    } catch (error) {
+      await options.queueRepository.saveItem(
+        createRetriedQueueItem(item, options.now(), getErrorMessage(error)),
+      );
+    }
+  }
+}
+
+async function uploadPhotoRemotely(options: {
+  client: SupabaseClient;
+  completeUpload: NonNullable<
+    SaveBabyPhotoWithRemoteUploadDependencies["completeUpload"]
+  >;
+  localRepository: BabyPhotoRepository;
+  now: () => string;
+  photo: BabyPhoto;
+  requestUploadPlan: NonNullable<
+    SaveBabyPhotoWithRemoteUploadDependencies["requestUploadPlan"]
+  >;
+  uploadFile: NonNullable<
+    SaveBabyPhotoWithRemoteUploadDependencies["uploadFile"]
+  >;
+  uploadRequest: RemoteBabyPhotoUploadRequest;
+}): Promise<void> {
   let plan: RemoteBabyPhotoUploadPlan | null = null;
 
   try {
-    plan = await requestUploadPlan(client, uploadRequest);
-    await dependencies.localRepository.savePhoto(
-      withBabyPhotoRemoteUpload(photo, {
+    plan = await options.requestUploadPlan(options.client, options.uploadRequest);
+    await options.localRepository.savePhoto(
+      withBabyPhotoRemoteUpload(options.photo, {
         mediaAssetId: plan.media_asset_id,
         objectKey: plan.object_key,
         status: "uploading",
-        now: now(),
+        now: options.now(),
       }),
     );
-    await uploadFile(photo, plan);
-    await completeUpload(client, plan.media_asset_id);
-    await dependencies.localRepository.savePhoto(
-      withBabyPhotoRemoteUpload(photo, {
+    await options.uploadFile(options.photo, plan);
+    await options.completeUpload(options.client, plan.media_asset_id);
+    await options.localRepository.savePhoto(
+      withBabyPhotoRemoteUpload(options.photo, {
         mediaAssetId: plan.media_asset_id,
         objectKey: plan.object_key,
         status: "uploaded",
-        now: now(),
+        now: options.now(),
       }),
     );
-
-    return "uploaded";
-  } catch {
+  } catch (error) {
     if (plan !== null) {
-      await dependencies.localRepository.savePhoto(
-        withBabyPhotoRemoteUpload(photo, {
+      await options.localRepository.savePhoto(
+        withBabyPhotoRemoteUpload(options.photo, {
           mediaAssetId: plan.media_asset_id,
           objectKey: plan.object_key,
           status: "failed",
-          now: now(),
+          now: options.now(),
         }),
       );
     }
 
-    return "failed";
+    throw error;
   }
 }
 
@@ -162,4 +284,22 @@ function createUploadHeaders(photo: BabyPhoto): Record<string, string> {
   return {
     "content-type": photo.mime_type,
   };
+}
+
+function createRetriedQueueItem(
+  item: RemoteBabyPhotoUploadQueueItem,
+  now: string,
+  lastError: string,
+): RemoteBabyPhotoUploadQueueItem {
+  return {
+    ...item,
+    attempt_count: item.attempt_count + 1,
+    updated_at: now,
+    last_attempt_at: now,
+    last_error: lastError,
+  };
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "원격 사진 업로드에 실패했습니다.";
 }

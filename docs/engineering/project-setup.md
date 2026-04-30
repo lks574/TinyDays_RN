@@ -166,6 +166,16 @@ PR-18 기준으로 사진 탭은 로컬 `AsyncStorage` 사진 metadata를 먼저
 - 원격 조회 또는 signed URL 요청이 실패해도 기존 로컬 사진 목록은 계속 표시한다.
 - signed URL 캐시, 만료 후 자동 갱신, 썸네일 최적화는 후속 작업으로 둔다.
 
+## 사진 원격 업로드 재시도
+
+PR-19 기준으로 사진 원격 업로드 실패는 `AsyncStorage` queue에 저장한다.
+
+- 사진 metadata는 기존처럼 먼저 로컬 저장소에 저장한다.
+- Supabase session과 원격 family mapping이 있으면 원격 업로드 전에 같은 사용자 queue item을 먼저 재시도한다.
+- 원격 업로드 준비, R2 PUT, 완료 알림 중 하나가 실패하면 queue item의 시도 횟수와 마지막 오류를 기록한다.
+- 재시도 성공 시 queue item을 삭제하고 로컬 사진 metadata의 `remote_status`를 `uploaded`로 갱신한다.
+- 백그라운드 자동 재시도와 R2 orphan 정리는 후속 작업으로 둔다.
+
 ## 완료된 세팅
 
 - Node 버전 파일 `.nvmrc`를 추가했다.
@@ -182,6 +192,7 @@ PR-18 기준으로 사진 탭은 로컬 `AsyncStorage` 사진 metadata를 먼저
 5. PR-16에서 `baby_logs` 클라우드 백업과 최소 재시도 queue를 추가한다.
 6. PR-17에서 R2 signed URL 기반 사진 원격 저장 1차를 추가한다.
 7. PR-18에서 원격 `media_assets` 조회와 signed download URL 표시를 추가한다.
+8. PR-19에서 사진 원격 업로드 실패 재시도 queue를 추가한다.
 
 ## 초기 도메인 모듈
 
