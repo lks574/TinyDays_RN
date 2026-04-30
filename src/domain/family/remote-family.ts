@@ -23,6 +23,13 @@ export type RemoteFamilyBootstrapResult = {
   member_role: FamilyMemberRole;
 };
 
+export type RemoteFamilyInvite = {
+  invite_id: string;
+  family_id: string;
+  code: string;
+  expires_at: string;
+};
+
 export type RemoteFamilyMapping = {
   user_id: string;
   local_family_id: string;
@@ -66,6 +73,16 @@ export function createRemoteFamilyMapping(
   };
 }
 
+export function normalizeRemoteFamilyInvite(
+  value: unknown,
+): RemoteFamilyInvite | null {
+  if (!isRemoteFamilyInvite(value)) {
+    return null;
+  }
+
+  return value;
+}
+
 export function normalizeRemoteFamilyMapping(
   value: unknown,
 ): RemoteFamilyMapping | null {
@@ -100,6 +117,21 @@ function normalizeOptionalDate(value: string | null): string | null {
   const trimmedValue = value.trim();
 
   return trimmedValue.length > 0 ? trimmedValue.slice(0, 10) : null;
+}
+
+function isRemoteFamilyInvite(value: unknown): value is RemoteFamilyInvite {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    typeof candidate.invite_id === "string" &&
+    typeof candidate.family_id === "string" &&
+    typeof candidate.code === "string" &&
+    typeof candidate.expires_at === "string"
+  );
 }
 
 function isRemoteFamilyMapping(value: unknown): value is RemoteFamilyMapping {

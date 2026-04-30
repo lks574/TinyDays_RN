@@ -20,8 +20,10 @@ export {
   createRemoteFamilyBootstrapInput,
   createRemoteFamilyMapping,
   normalizeRemoteFamilyBootstrapResult,
+  normalizeRemoteFamilyInvite,
   normalizeRemoteFamilyMapping,
   type RemoteFamilyBootstrapInput,
   type RemoteFamilyBootstrapResult,
+  type RemoteFamilyInvite,
   type RemoteFamilyMapping,
 } from "./remote-family";

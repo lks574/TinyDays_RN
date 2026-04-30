@@ -233,3 +233,22 @@ PR-17에서는 모바일 앱이 R2 access key를 직접 갖지 않고 Supabase E
 - Edge Function 배포와 R2 환경 변수 설정이 필요합니다.
 - PR-17은 원격 업로드 retry queue와 썸네일 생성은 포함하지 않습니다. 사진 삭제 시 R2 object 삭제는 SPEC-PHOTO-006에서 추가합니다.
 - `media_assets`에는 object key와 metadata만 저장하고 원본 binary는 저장하지 않습니다.
+
+## ADR-013: 가족 초대 1차는 Supabase RPC와 초대 코드로 처리
+
+상태: 채택
+
+SPEC-FAMILY-004에서는 원격 가족 구성원 합류를 `family_invites` 테이블과 `create_family_invite`, `accept_family_invite` RPC로 처리합니다. `parent` 역할만 초대 코드를 만들 수 있고, 초대 코드를 수락한 authenticated 사용자는 해당 가족의 `family` 역할 구성원이 됩니다.
+
+근거:
+
+- 모바일 앱에 service role key를 넣지 않고 가족 합류를 처리해야 합니다.
+- 기존 `family_members` RLS는 `parent`만 write할 수 있으므로 초대 수락에는 제한된 `security definer` RPC가 필요합니다.
+- MVP에서는 링크 공유보다 입력 가능한 짧은 코드가 구현과 검증이 단순합니다.
+- 초대 수락 결과를 기존 `RemoteFamilyMapping`으로 저장하면 기록 백업과 사진 원격 저장 흐름을 재사용할 수 있습니다.
+
+제약:
+
+- 초대 코드는 기본 7일 뒤 만료됩니다.
+- 초대 취소/재발급 관리 화면, 구성원 제거, 여러 가족 전환은 후속 작업입니다.
+- 초대 수락 사용자는 1차에서 `family` 역할로만 추가합니다.

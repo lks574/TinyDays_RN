@@ -240,6 +240,93 @@ $$;
 
 select set_config(
   'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000011',
+  true
+);
+
+create temporary table invite_result as
+select *
+from public.create_family_invite(
+  '10000000-0000-0000-0000-000000000011'
+);
+
+do $$
+declare
+  invite_count integer;
+begin
+  select count(*) into invite_count from invite_result;
+
+  if invite_count != 1 then
+    raise exception 'parent should create one family invite';
+  end if;
+end;
+$$;
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000012',
+  true
+);
+
+do $$
+begin
+  perform public.create_family_invite(
+    '10000000-0000-0000-0000-000000000011'
+  );
+
+  raise exception 'family role should not create family invites';
+exception
+  when insufficient_privilege or check_violation or raise_exception then
+    null;
+end;
+$$;
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000013',
+  true
+);
+
+do $$
+declare
+  accepted_result record;
+  actual_count integer;
+begin
+  select *
+  into accepted_result
+  from public.accept_family_invite(
+    (select code from invite_result limit 1),
+    '초대 가족'
+  );
+
+  if accepted_result.remote_user_id != '00000000-0000-0000-0000-000000000013' then
+    raise exception 'invite should use auth uid as remote user';
+  end if;
+
+  if accepted_result.member_role != 'family' then
+    raise exception 'accepted invite member should be family';
+  end if;
+
+  select count(*) into actual_count
+  from public.family_members
+  where family_id = '10000000-0000-0000-0000-000000000011'
+    and user_id = '00000000-0000-0000-0000-000000000013'
+    and role = 'family';
+
+  if actual_count != 1 then
+    raise exception 'invite should create one family member';
+  end if;
+
+  select count(*) into actual_count from public.baby_logs;
+
+  if actual_count != 1 then
+    raise exception 'accepted invite member should read baby_logs, got %', actual_count;
+  end if;
+end;
+$$;
+
+select set_config(
+  'request.jwt.claim.sub',
   '00000000-0000-0000-0000-000000000014',
   true
 );

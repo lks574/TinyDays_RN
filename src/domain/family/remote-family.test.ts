@@ -3,6 +3,7 @@ import {
   createRemoteFamilyBootstrapInput,
   createRemoteFamilyMapping,
   normalizeRemoteFamilyBootstrapResult,
+  normalizeRemoteFamilyInvite,
   normalizeRemoteFamilyMapping,
 } from ".";
 
@@ -60,5 +61,22 @@ describe("remote family normalization", () => {
     expect(
       normalizeRemoteFamilyBootstrapResult({ member_role: "guardian" }),
     ).toBeNull();
+  });
+
+  it("normalizes remote family invite values", () => {
+    expect(
+      normalizeRemoteFamilyInvite({
+        invite_id: "invite-1",
+        family_id: "family-1",
+        code: "A1B2C3D4",
+        expires_at: "2026-05-07T00:00:00.000Z",
+      }),
+    ).toEqual({
+      invite_id: "invite-1",
+      family_id: "family-1",
+      code: "A1B2C3D4",
+      expires_at: "2026-05-07T00:00:00.000Z",
+    });
+    expect(normalizeRemoteFamilyInvite({ code: "A1B2C3D4" })).toBeNull();
   });
 });

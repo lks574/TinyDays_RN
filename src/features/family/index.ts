@@ -8,6 +8,10 @@ export {
   getExistingRemoteFamily,
 } from "./remote-family-bootstrap-repository";
 export {
+  acceptRemoteFamilyInvite,
+  createRemoteFamilyInvite,
+} from "./remote-family-invite-repository";
+export {
   createRemoteFamilyMappingRepository,
   remoteFamilyMappingRepository,
   type RemoteFamilyMappingRepository,

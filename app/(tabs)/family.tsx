@@ -15,11 +15,14 @@ import {
   createDefaultFamilyContext,
   getSelectedChild,
   type FamilyContext,
+  type RemoteFamilyInvite,
   type RemoteFamilyMapping,
 } from '../../src/domain/family';
 import { getSupabaseClient, useSupabaseAuth } from '../../src/features/auth';
 import {
+  acceptRemoteFamilyInvite,
   bootstrapRemoteFamily,
+  createRemoteFamilyInvite,
   getExistingRemoteFamily,
   localFamilyContextRepository,
   remoteFamilyMappingRepository,
@@ -52,6 +55,10 @@ export default function FamilyScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [remoteMapping, setRemoteMapping] =
     useState<RemoteFamilyMapping | null>(null);
+  const [remoteInvite, setRemoteInvite] = useState<RemoteFamilyInvite | null>(
+    null,
+  );
+  const [inviteCode, setInviteCode] = useState('');
   const [remoteStatusMessage, setRemoteStatusMessage] = useState('');
   const [remoteErrorMessage, setRemoteErrorMessage] = useState('');
   const [isRemoteLoading, setIsRemoteLoading] = useState(false);
@@ -85,6 +92,7 @@ export default function FamilyScreen() {
   const loadRemoteFamilyConnection = useCallback(async () => {
     if (auth.session === null) {
       setRemoteMapping(null);
+      setRemoteInvite(null);
       setRemoteStatusMessage('');
       setRemoteErrorMessage('');
       return;
@@ -94,6 +102,7 @@ export default function FamilyScreen() {
 
     if (client === null) {
       setRemoteMapping(null);
+      setRemoteInvite(null);
       return;
     }
 
@@ -266,6 +275,94 @@ export default function FamilyScreen() {
     }
   }
 
+  async function handleCreateRemoteInvite() {
+    if (auth.session === null || remoteMapping === null) {
+      setRemoteErrorMessage('원격 가족 연결이 필요합니다.');
+      setRemoteStatusMessage('');
+      return;
+    }
+
+    const client = getSupabaseClient();
+
+    if (client === null) {
+      setRemoteErrorMessage('Supabase 설정을 확인해 주세요.');
+      setRemoteStatusMessage('');
+      return;
+    }
+
+    setIsRemoteLoading(true);
+    setRemoteErrorMessage('');
+    setRemoteStatusMessage('');
+
+    try {
+      const invite = await createRemoteFamilyInvite(
+        client,
+        remoteMapping.remote_family_id,
+      );
+
+      setRemoteInvite(invite);
+      setRemoteStatusMessage('가족 초대 코드를 만들었습니다.');
+    } catch {
+      setRemoteInvite(null);
+      setRemoteErrorMessage('가족 초대 코드를 만들지 못했습니다.');
+    } finally {
+      setIsRemoteLoading(false);
+    }
+  }
+
+  async function handleAcceptRemoteInvite() {
+    if (auth.session === null) {
+      setRemoteErrorMessage('초대를 수락하려면 먼저 로그인해 주세요.');
+      setRemoteStatusMessage('');
+      return;
+    }
+
+    const client = getSupabaseClient();
+    const normalizedInviteCode = inviteCode.trim().toUpperCase();
+
+    if (client === null) {
+      setRemoteErrorMessage('Supabase 설정을 확인해 주세요.');
+      setRemoteStatusMessage('');
+      return;
+    }
+
+    if (normalizedInviteCode.length === 0) {
+      setRemoteErrorMessage('초대 코드를 입력해 주세요.');
+      setRemoteStatusMessage('');
+      return;
+    }
+
+    setIsRemoteLoading(true);
+    setRemoteErrorMessage('');
+    setRemoteStatusMessage('');
+
+    try {
+      const result = await acceptRemoteFamilyInvite(client, {
+        code: normalizedInviteCode,
+        memberName: normalizeRequiredText(
+          familyContext.current_member.name,
+          '가족',
+        ),
+      });
+      const savedMapping = await remoteFamilyMappingRepository.saveMapping(
+        createRemoteFamilyMapping(
+          familyContext,
+          result,
+          new Date().toISOString(),
+        ),
+      );
+
+      setRemoteMapping(savedMapping);
+      setInviteCode('');
+      setRemoteStatusMessage('가족 초대를 수락하고 원격 가족과 연결했습니다.');
+    } catch {
+      setRemoteErrorMessage('초대 코드를 수락하지 못했습니다.');
+      setRemoteStatusMessage('');
+    } finally {
+      setIsRemoteLoading(false);
+    }
+  }
+
   const selectedChild = getSelectedChild(familyContext);
   const dayCount = calculateDayCount(
     selectedChild.birth_date,
@@ -405,6 +502,54 @@ export default function FamilyScreen() {
                 >
                   {remoteMapping === null ? '원격 가족 만들기' : '원격 가족 연결됨'}
                 </Button>
+                {remoteMapping === null ? (
+                  <View style={styles.invitePanel}>
+                    <Field
+                      label="초대 코드"
+                      value={inviteCode}
+                      placeholder="A1B2C3D4"
+                      autoCapitalize="characters"
+                      onChangeText={setInviteCode}
+                      compact
+                      noBorder
+                    />
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      full
+                      disabled={isRemoteLoading}
+                      onPress={handleAcceptRemoteInvite}
+                    >
+                      초대 코드로 연결
+                    </Button>
+                  </View>
+                ) : (
+                  <View style={styles.invitePanel}>
+                    <Stack gap={theme.spacing[2]}>
+                      <Body size="S" tone="ink3">
+                        가족 구성원이 로그인 후 이 코드를 입력하면 같은 원격
+                        가족에 연결됩니다.
+                      </Body>
+                      {remoteInvite !== null ? (
+                        <View style={styles.inviteCodeBox}>
+                          <Mono tone="ink2">{remoteInvite.code}</Mono>
+                          <Caption tone="ink4">
+                            만료: {formatDateTime(remoteInvite.expires_at)}
+                          </Caption>
+                        </View>
+                      ) : null}
+                    </Stack>
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      full
+                      disabled={isRemoteLoading}
+                      onPress={handleCreateRemoteInvite}
+                    >
+                      가족 초대 코드 만들기
+                    </Button>
+                  </View>
+                )}
                 <Button
                   variant="secondary"
                   size="md"
@@ -578,6 +723,15 @@ function formatDayCount(dayCount: number | null): string {
   return dayCount === null ? 'D+ 계산 불가' : `D+${dayCount}`;
 }
 
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
 function getRoleLabel(role: FamilyContext['current_member']['role']): string {
   switch (role) {
     case 'parent':
@@ -625,6 +779,16 @@ const styles = StyleSheet.create({
   },
   authActionButton: {
     flex: 1,
+  },
+  invitePanel: {
+    gap: theme.spacing[3],
+    paddingTop: theme.spacing[2],
+  },
+  inviteCodeBox: {
+    gap: theme.spacing[1],
+    padding: theme.spacing[3],
+    borderRadius: theme.radii.md,
+    backgroundColor: theme.colors.bg,
   },
   remoteIdPanel: {
     gap: theme.spacing[1],

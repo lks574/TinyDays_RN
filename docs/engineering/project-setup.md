@@ -135,6 +135,17 @@ PR-15 기준으로 로그인한 사용자는 가족 탭에서 현재 로컬 가�
 - 원격 bootstrap 성공 후에도 기록과 사진은 기존 로컬 저장소에 먼저 저장된다.
 - PR-16 `baby_logs` 클라우드 백업은 이 mapping record를 사용해 원격 UUID로 변환한다.
 
+## 가족 초대와 구성원 연결
+
+SPEC-FAMILY-004 기준으로 가족 초대 1차는 Supabase RPC와 초대 코드로 처리한다.
+
+- `parent` 역할 구성원은 `create_family_invite` RPC로 8자리 초대 코드를 만들 수 있다.
+- 초대 코드는 `family_invites`에 저장되고 기본 7일 뒤 만료된다.
+- 로그인한 사용자는 `accept_family_invite` RPC에 초대 코드를 입력해 해당 원격 가족의 `family` 역할 구성원이 된다.
+- 초대 수락 결과는 기존 `RemoteFamilyMapping`에 저장해 기록 백업과 사진 원격 저장/조회에서 같은 mapping 구조를 사용한다.
+- 모바일 앱은 Supabase anon key와 Auth session만 사용하며 service role key를 갖지 않는다.
+- 초대 취소/재발급 관리, 구성원 제거, 여러 가족 전환은 후속 작업으로 둔다.
+
 ## R2 사진 원격 저장
 
 PR-17 기준으로 사진 원본 원격 저장은 Supabase Edge Function `media-r2-url`이 담당한다.
@@ -205,6 +216,7 @@ SPEC-PHOTO-006 기준으로 사진 삭제는 local-first 흐름을 유지하면�
 7. PR-18에서 원격 `media_assets` 조회와 signed download URL 표시를 추가한다.
 8. PR-19에서 사진 원격 업로드 실패 재시도 queue를 추가한다.
 9. SPEC-PHOTO-006에서 사진 삭제와 R2 object 정리 경로를 추가한다.
+10. SPEC-FAMILY-004에서 가족 초대와 구성원 연결 1차를 추가한다.
 
 ## 초기 도메인 모듈
 
