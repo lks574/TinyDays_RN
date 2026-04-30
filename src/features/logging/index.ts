@@ -20,3 +20,19 @@ export {
   createLocalBabyLogRepository,
   localBabyLogRepository,
 } from "./local-baby-log-repository";
+
+export {
+  saveBabyLogWithRemoteBackup,
+  type SaveBabyLogWithRemoteBackupDependencies,
+  type SaveBabyLogWithRemoteBackupResult,
+} from "./baby-log-backup-service";
+
+export {
+  createRemoteBabyLogBackupQueueItem,
+  createRemoteBabyLogBackupQueueRepository,
+  remoteBabyLogBackupQueueRepository,
+  type RemoteBabyLogBackupQueueItem,
+  type RemoteBabyLogBackupQueueRepository,
+} from "./remote-baby-log-backup-queue-repository";
+
+export { backupRemoteBabyLog } from "./remote-baby-log-repository";

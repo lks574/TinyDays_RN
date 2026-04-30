@@ -12,4 +12,10 @@ export {
   isBabyLogType,
   needsBabyLogConfirmation,
 } from "./baby-log";
+
+export {
+  createRemoteBabyLogInsert,
+  type RemoteBabyLogInsert,
+} from "./remote-baby-log";
+
 export type { BabyLogRepository } from "./baby-log-repository";

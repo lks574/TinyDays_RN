@@ -19,7 +19,10 @@ import {
 } from '../../src/domain/family';
 import { createTodaySummary } from '../../src/domain/insights';
 import { parseBabyLogText } from '../../src/domain/parser';
-import { localFamilyContextRepository } from '../../src/features/family';
+import {
+  localFamilyContextRepository,
+  remoteFamilyMappingRepository,
+} from '../../src/features/family';
 import {
   createEditableParsedLog,
   createQuickLogCandidate,
@@ -28,6 +31,7 @@ import {
   getLastSleepLogType,
   localBabyLogRepository,
   QUICK_LOG_ACTIONS,
+  saveBabyLogWithRemoteBackup,
   sortLogsByRecent,
   TEXT_LOG_TYPE_OPTIONS,
   type QuickLogActionId,
@@ -57,6 +61,7 @@ export default function HomeScreen() {
   const [textInput, setTextInput] = useState('');
   const [parseError, setParseError] = useState('');
   const [storageError, setStorageError] = useState('');
+  const [backupStatusMessage, setBackupStatusMessage] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [pendingLog, setPendingLog] = useState<EditableParsedLog | null>(null);
 
@@ -95,6 +100,7 @@ export default function HomeScreen() {
           setLogs(storedLogs);
           setFamilyContext(storedFamilyContext);
           setStorageError('');
+          setBackupStatusMessage('');
         })
         .catch(() => {
           if (!isActive) {
@@ -185,10 +191,26 @@ export default function HomeScreen() {
 
   async function saveLog(log: BabyLog, errorMessage: string): Promise<boolean> {
     try {
-      const nextLogs = await localBabyLogRepository.saveLog(log);
+      const result = await saveBabyLogWithRemoteBackup(log, {
+        localRepository: localBabyLogRepository,
+        mappingRepository: remoteFamilyMappingRepository,
+      });
 
-      setLogs(nextLogs);
+      setLogs(result.logs);
       setStorageError('');
+      setBackupStatusMessage('');
+
+      if (result.remoteBackup !== null) {
+        void result.remoteBackup
+          .then((remoteBackupStatus) => {
+            if (remoteBackupStatus === 'queued') {
+              setBackupStatusMessage('원격 백업은 나중에 다시 시도합니다.');
+            }
+          })
+          .catch(() => {
+            setBackupStatusMessage('원격 백업 상태를 확인하지 못했습니다.');
+          });
+      }
 
       return true;
     } catch {
@@ -229,6 +251,11 @@ export default function HomeScreen() {
         </View>
         {storageError.length > 0 ? (
           <Text style={styles.storageErrorText}>{storageError}</Text>
+        ) : null}
+        {backupStatusMessage.length > 0 ? (
+          <Caption tone="ink4" style={styles.backupStatusText}>
+            {backupStatusMessage}
+          </Caption>
         ) : null}
 
         <Card padding={0} style={styles.summaryCard}>
@@ -813,6 +840,11 @@ const styles = StyleSheet.create({
     color: '#B42318',
     fontSize: 13,
     fontWeight: '600',
+  },
+  backupStatusText: {
+    paddingHorizontal: theme.spacing[7],
+    marginTop: -theme.spacing[2],
+    marginBottom: theme.spacing[4],
   },
   textConfirmButton: {
     marginTop: theme.spacing[4],
