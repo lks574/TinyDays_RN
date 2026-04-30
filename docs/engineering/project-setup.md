@@ -157,6 +157,15 @@ R2_SIGNED_URL_EXPIRES_SECONDS=600
 
 로컬 또는 원격 Supabase Function 배포 전에는 위 값과 Supabase 기본 환경 변수 `SUPABASE_URL`, `SUPABASE_ANON_KEY`가 필요하다. R2 secret은 Expo public env나 모바일 앱에 넣지 않는다.
 
+## 원격 사진 조회
+
+PR-18 기준으로 사진 탭은 로컬 `AsyncStorage` 사진 metadata를 먼저 불러온 뒤, Supabase session과 원격 family mapping이 있으면 원격 `media_assets`의 `uploaded` 사진을 조회한다.
+
+- 원격 metadata 조회는 Supabase RLS의 `family_members` 기준 select policy를 따른다.
+- 원격 사진 원본 URL은 앱이 직접 R2 secret을 사용하지 않고 `media-r2-url` Edge Function의 `create_download` action으로 signed download URL을 받는다.
+- 원격 조회 또는 signed URL 요청이 실패해도 기존 로컬 사진 목록은 계속 표시한다.
+- signed URL 캐시, 만료 후 자동 갱신, 썸네일 최적화는 후속 작업으로 둔다.
+
 ## 완료된 세팅
 
 - Node 버전 파일 `.nvmrc`를 추가했다.
@@ -172,6 +181,7 @@ R2_SIGNED_URL_EXPIRES_SECONDS=600
 4. 기록 수정/삭제, 날짜별 조회, sync queue가 필요해지면 `baby_logs`부터 Expo SQLite로 이전한다.
 5. PR-16에서 `baby_logs` 클라우드 백업과 최소 재시도 queue를 추가한다.
 6. PR-17에서 R2 signed URL 기반 사진 원격 저장 1차를 추가한다.
+7. PR-18에서 원격 `media_assets` 조회와 signed download URL 표시를 추가한다.
 
 ## 초기 도메인 모듈
 

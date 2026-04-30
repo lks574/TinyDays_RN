@@ -27,6 +27,7 @@ import {
   remoteFamilyMappingRepository,
 } from '../../src/features/family';
 import {
+  loadBabyPhotosWithRemoteDownloads,
   localBabyPhotoRepository,
   saveBabyPhotoWithRemoteUpload,
 } from '../../src/features/photos';
@@ -102,21 +103,30 @@ export default function PhotosScreen() {
 
       setIsLoading(true);
       Promise.all([
-        localBabyPhotoRepository.listPhotos(),
+        loadBabyPhotosWithRemoteDownloads({
+          localRepository: localBabyPhotoRepository,
+          mappingRepository: remoteFamilyMappingRepository,
+        }),
         localFamilyContextRepository.getContext(new Date().toISOString()),
       ])
-        .then(([storedPhotos, storedFamilyContext]) => {
+        .then(([photoResult, storedFamilyContext]) => {
           if (!isActive) {
             return;
           }
 
-          setPhotos(storedPhotos);
+          setPhotos(photoResult.photos);
           setFamilyContext(storedFamilyContext);
           setErrorMessage('');
+          setStatusMessage(
+            photoResult.remoteStatus === 'failed'
+              ? '로컬 사진만 표시 중입니다. 원격 사진은 불러오지 못했습니다.'
+              : '',
+          );
         })
         .catch(() => {
           if (isActive) {
             setErrorMessage('사진 정보를 불러오지 못했습니다.');
+            setStatusMessage('');
           }
         })
         .finally(() => {
