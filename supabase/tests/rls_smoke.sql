@@ -52,6 +52,19 @@ values
     now(),
     '{"provider":"email","providers":["email"]}',
     '{}'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000014',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'rls-bootstrap@example.com',
+    crypt('password', gen_salt('bf')),
+    now(),
+    now(),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    '{}'
   );
 
 insert into public.families (id, name, created_by)
@@ -221,6 +234,70 @@ begin
 
   if actual_count != 0 then
     raise exception 'outsider should not read baby_logs, got %', actual_count;
+  end if;
+end;
+$$;
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000014',
+  true
+);
+
+do $$
+declare
+  bootstrap_result record;
+  family_count integer;
+  member_count integer;
+  child_count integer;
+begin
+  select *
+  into bootstrap_result
+  from public.bootstrap_family(
+    '부트스트랩 가족',
+    '새아기',
+    '2026-01-02',
+    '새 보호자'
+  );
+
+  if bootstrap_result.remote_user_id != '00000000-0000-0000-0000-000000000014' then
+    raise exception 'bootstrap should use auth uid as remote user';
+  end if;
+
+  if bootstrap_result.member_role != 'parent' then
+    raise exception 'bootstrap member should be parent';
+  end if;
+
+  select count(*) into family_count
+  from public.families
+  where created_by = '00000000-0000-0000-0000-000000000014';
+
+  select count(*) into member_count
+  from public.family_members
+  where user_id = '00000000-0000-0000-0000-000000000014'
+    and role = 'parent';
+
+  select count(*) into child_count
+  from public.children
+  where family_id = bootstrap_result.remote_family_id;
+
+  if family_count != 1 or member_count != 1 or child_count != 1 then
+    raise exception 'bootstrap should create one family/member/child';
+  end if;
+
+  perform public.bootstrap_family(
+    '중복 가족',
+    '중복 아기',
+    null,
+    '중복 보호자'
+  );
+
+  select count(*) into family_count
+  from public.families
+  where created_by = '00000000-0000-0000-0000-000000000014';
+
+  if family_count != 1 then
+    raise exception 'bootstrap should not create duplicate families';
   end if;
 end;
 $$;

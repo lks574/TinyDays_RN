@@ -313,20 +313,22 @@ PR 작업이 끝나도 커밋 전이면 `진행 중`으로 둔다. 완료 기준
 
 ## PR-15: 원격 가족과 아기 bootstrap
 
-상태: 대기
+상태: 완료
 
 목표: 로그인한 사용자가 원격 가족과 아기 기준 데이터를 만들 수 있게 한다.
 
 범위:
 
 - 현재 로컬 family context를 원격 `families`, `family_members`, `children` 구조와 매핑한다.
-- 첫 `parent` 구성원 생성 흐름을 정의한다.
+- 첫 `parent` 구성원 생성을 위해 authenticated `bootstrap_family` RPC를 둔다.
+- 로컬 ID와 원격 UUID는 별도 local-to-remote mapping record로 유지한다.
 - 초대 링크/코드의 실제 공유 UX는 별도 PR로 둔다.
 
 완료 기준:
 
 - 로그인한 사용자는 원격 가족, 아기, 본인 `parent` 구성원을 만들 수 있다.
 - 기존 로컬 ID와 원격 UUID의 매핑 전략이 문서화된다.
+- 로컬 가족/기록/사진 저장 흐름은 원격 bootstrap 실패와 무관하게 유지된다.
 
 ## PR-16: `baby_logs` 클라우드 백업 1차
 

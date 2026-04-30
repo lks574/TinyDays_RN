@@ -197,3 +197,21 @@ TinyDays의 최종 지향 구조는 앱 내부 Expo SQLite, 서버 Supabase, 미
 - 서버 AI 파싱은 MVP 범위에 포함하지 않습니다.
 
 세부 구조는 `docs/architecture/backend-storage-strategy.md`를 기준으로 관리합니다.
+
+## ADR-011: 첫 원격 가족 생성은 authenticated RPC로 처리
+
+상태: 채택
+
+PR-15에서는 로그인한 사용자의 첫 원격 가족, 첫 `parent` 구성원, 첫 아기 생성을 `bootstrap_family` RPC로 처리합니다. 모바일 앱은 Supabase anon key와 사용자 Auth session만 사용하며 service role key를 포함하지 않습니다.
+
+근거:
+
+- 기존 RLS는 `family_members` insert에 `parent` 권한을 요구하므로, 아직 구성원이 없는 신규 가족의 첫 `parent` row를 일반 insert로 만들 수 없습니다.
+- service role key를 모바일 앱에 넣으면 가족/아기 개인정보 접근 권한이 과도하게 노출됩니다.
+- `security definer` RPC에서 `auth.uid()`를 기준으로 `families.created_by`와 `family_members.user_id`를 고정하면 첫 생성 경로를 제한할 수 있습니다.
+
+제약:
+
+- RPC는 authenticated 사용자만 호출할 수 있어야 합니다.
+- 같은 사용자가 재시도하면 기존 멤버십을 반환하고 중복 가족을 만들지 않아야 합니다.
+- 원격 UUID는 기존 로컬 ID를 대체하지 않고 별도 mapping record로 연결합니다.

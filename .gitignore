@@ -64,6 +64,10 @@ pnpm-debug.log*
 .env.*
 !.env.example
 
+# Supabase local CLI state
+supabase/.branches/
+supabase/.temp/
+
 # Local editor and OS files
 .DS_Store
 Thumbs.db

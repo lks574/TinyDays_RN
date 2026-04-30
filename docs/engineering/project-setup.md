@@ -125,6 +125,16 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=replace-with-local-or-project-anon-key
 
 환경 변수가 없으면 가족 탭의 원격 계정 패널은 설정 필요 상태를 표시하고, 기존 `AsyncStorage` 기반 로컬 가족/기록/사진 흐름은 계속 동작한다.
 
+## 원격 가족 bootstrap
+
+PR-15 기준으로 로그인한 사용자는 가족 탭에서 현재 로컬 가족/아기 정보를 Supabase `families`, `family_members`, `children` 기준 데이터로 만들 수 있다.
+
+- 첫 `parent` 멤버 생성은 `bootstrap_family` RPC를 사용한다.
+- 모바일 앱은 Supabase anon key와 Auth session만 사용하며 service role key를 갖지 않는다.
+- 로컬 `family_id`, `child_id`, `created_by`는 원격 UUID로 덮어쓰지 않고 `AsyncStorage` mapping record에 보존한다.
+- 원격 bootstrap 성공 후에도 기록과 사진은 기존 로컬 저장소에 먼저 저장된다.
+- PR-16 `baby_logs` 클라우드 백업은 이 mapping record를 사용해 원격 UUID로 변환한다.
+
 ## 완료된 세팅
 
 - Node 버전 파일 `.nvmrc`를 추가했다.
@@ -138,7 +148,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=replace-with-local-or-project-anon-key
 2. 경로 alias를 추가한다.
 3. 아기 기록과 자연어 파서 초기 도메인 모듈을 만든다.
 4. 기록 수정/삭제, 날짜별 조회, sync queue가 필요해지면 `baby_logs`부터 Expo SQLite로 이전한다.
-5. 원격 가족 bootstrap이 필요해지면 PR-14의 Auth session 계층을 기준으로 `families`, `family_members`, `children` 생성을 연결한다.
+5. PR-16에서 `baby_logs` 클라우드 백업과 최소 재시도 queue를 추가한다.
 
 ## 초기 도메인 모듈
 

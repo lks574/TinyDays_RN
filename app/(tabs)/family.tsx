@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -10,12 +10,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   calculateDayCount,
+  createRemoteFamilyBootstrapInput,
+  createRemoteFamilyMapping,
   createDefaultFamilyContext,
   getSelectedChild,
   type FamilyContext,
+  type RemoteFamilyMapping,
 } from '../../src/domain/family';
-import { useSupabaseAuth } from '../../src/features/auth';
-import { localFamilyContextRepository } from '../../src/features/family';
+import { getSupabaseClient, useSupabaseAuth } from '../../src/features/auth';
+import {
+  bootstrapRemoteFamily,
+  getExistingRemoteFamily,
+  localFamilyContextRepository,
+  remoteFamilyMappingRepository,
+} from '../../src/features/family';
 import {
   Badge,
   Body,
@@ -42,6 +50,11 @@ export default function FamilyScreen() {
   const [birthDate, setBirthDate] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [remoteMapping, setRemoteMapping] =
+    useState<RemoteFamilyMapping | null>(null);
+  const [remoteStatusMessage, setRemoteStatusMessage] = useState('');
+  const [remoteErrorMessage, setRemoteErrorMessage] = useState('');
+  const [isRemoteLoading, setIsRemoteLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,6 +81,72 @@ export default function FamilyScreen() {
       };
     }, []),
   );
+
+  const loadRemoteFamilyConnection = useCallback(async () => {
+    if (auth.session === null) {
+      setRemoteMapping(null);
+      setRemoteStatusMessage('');
+      setRemoteErrorMessage('');
+      return;
+    }
+
+    const client = getSupabaseClient();
+
+    if (client === null) {
+      setRemoteMapping(null);
+      return;
+    }
+
+    const userId = auth.session.user.id;
+
+    try {
+      const storedMapping =
+        await remoteFamilyMappingRepository.getMapping(userId);
+
+      if (storedMapping !== null) {
+        setRemoteMapping(storedMapping);
+        setRemoteStatusMessage('원격 가족과 연결되어 있습니다.');
+        setRemoteErrorMessage('');
+        return;
+      }
+
+      const existingRemoteFamily = await getExistingRemoteFamily(client, userId);
+
+      if (existingRemoteFamily === null) {
+        setRemoteMapping(null);
+        setRemoteStatusMessage('원격 가족을 아직 만들지 않았습니다.');
+        setRemoteErrorMessage('');
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const mapping = createRemoteFamilyMapping(
+        familyContext,
+        existingRemoteFamily,
+        now,
+      );
+
+      const savedMapping =
+        await remoteFamilyMappingRepository.saveMapping(mapping);
+
+      setRemoteMapping(savedMapping);
+      setRemoteStatusMessage('기존 원격 가족 연결을 복구했습니다.');
+      setRemoteErrorMessage('');
+    } catch {
+      setRemoteErrorMessage('원격 가족 연결 상태를 불러오지 못했습니다.');
+      setRemoteStatusMessage('');
+    }
+  }, [auth.session, familyContext]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadRemoteFamilyConnection();
+    }, [loadRemoteFamilyConnection]),
+  );
+
+  useEffect(() => {
+    void loadRemoteFamilyConnection();
+  }, [loadRemoteFamilyConnection]);
 
   function syncForm(context: FamilyContext) {
     const child = getSelectedChild(context);
@@ -128,6 +207,62 @@ export default function FamilyScreen() {
     } catch {
       setErrorMessage('가족 정보를 저장하지 못했습니다.');
       setStatusMessage('');
+    }
+  }
+
+  async function handleBootstrapRemoteFamily() {
+    if (auth.session === null) {
+      setRemoteErrorMessage('원격 가족을 만들려면 먼저 로그인해 주세요.');
+      setRemoteStatusMessage('');
+      return;
+    }
+
+    const client = getSupabaseClient();
+
+    if (client === null) {
+      setRemoteErrorMessage('Supabase 설정을 확인해 주세요.');
+      setRemoteStatusMessage('');
+      return;
+    }
+
+    setIsRemoteLoading(true);
+    setRemoteErrorMessage('');
+    setRemoteStatusMessage('');
+
+    try {
+      const userId = auth.session.user.id;
+      const storedMapping =
+        await remoteFamilyMappingRepository.getMapping(userId);
+
+      if (storedMapping !== null) {
+        setRemoteMapping(storedMapping);
+        setRemoteStatusMessage('이미 원격 가족과 연결되어 있습니다.');
+        return;
+      }
+
+      const existingRemoteFamily = await getExistingRemoteFamily(client, userId);
+      const bootstrapResult =
+        existingRemoteFamily ??
+        (await bootstrapRemoteFamily(
+          client,
+          createRemoteFamilyBootstrapInput(familyContext),
+        ));
+      const now = new Date().toISOString();
+      const savedMapping = await remoteFamilyMappingRepository.saveMapping(
+        createRemoteFamilyMapping(familyContext, bootstrapResult, now),
+      );
+
+      setRemoteMapping(savedMapping);
+      setRemoteStatusMessage(
+        existingRemoteFamily === null
+          ? '원격 가족과 아기를 만들었습니다.'
+          : '기존 원격 가족 연결을 저장했습니다.',
+      );
+    } catch {
+      setRemoteErrorMessage('원격 가족을 만들지 못했습니다. 다시 시도해 주세요.');
+      setRemoteStatusMessage('');
+    } finally {
+      setIsRemoteLoading(false);
     }
   }
 
@@ -223,8 +358,23 @@ export default function FamilyScreen() {
                   </Heading>
                   <Body size="S" tone="ink3">
                     원격 계정 세션이 연결되어 있습니다. 아직 로컬 가족 정보와
-                    원격 가족 생성은 분리되어 있습니다.
+                    기록 저장은 분리되어 있습니다.
                   </Body>
+                  {remoteMapping === null ? (
+                    <Body size="S" tone="ink3">
+                      현재 로컬 가족과 아기를 Supabase 가족 기준 데이터로 만들 수
+                      있습니다.
+                    </Body>
+                  ) : (
+                    <View style={styles.remoteIdPanel}>
+                      <Mono tone="ink4">
+                        remote_family_id: {remoteMapping.remote_family_id}
+                      </Mono>
+                      <Mono tone="ink4">
+                        remote_child_id: {remoteMapping.remote_child_id}
+                      </Mono>
+                    </View>
+                  )}
                 </Stack>
                 {auth.errorMessage.length > 0 ? (
                   <Body size="S" tone="temp">
@@ -236,6 +386,25 @@ export default function FamilyScreen() {
                     {auth.statusMessage}
                   </Body>
                 ) : null}
+                {remoteErrorMessage.length > 0 ? (
+                  <Body size="S" tone="temp">
+                    {remoteErrorMessage}
+                  </Body>
+                ) : null}
+                {remoteStatusMessage.length > 0 ? (
+                  <Body size="S" tone="accent">
+                    {remoteStatusMessage}
+                  </Body>
+                ) : null}
+                <Button
+                  variant="primary"
+                  size="md"
+                  full
+                  disabled={isRemoteLoading || remoteMapping !== null}
+                  onPress={handleBootstrapRemoteFamily}
+                >
+                  {remoteMapping === null ? '원격 가족 만들기' : '원격 가족 연결됨'}
+                </Button>
                 <Button
                   variant="secondary"
                   size="md"
@@ -456,6 +625,9 @@ const styles = StyleSheet.create({
   },
   authActionButton: {
     flex: 1,
+  },
+  remoteIdPanel: {
+    gap: theme.spacing[1],
   },
   savePanel: {
     gap: theme.spacing[4],

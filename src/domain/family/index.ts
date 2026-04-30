@@ -16,3 +16,12 @@ export {
   type FamilyProfile,
   type LogOwnerContext,
 } from "./family";
+export {
+  createRemoteFamilyBootstrapInput,
+  createRemoteFamilyMapping,
+  normalizeRemoteFamilyBootstrapResult,
+  normalizeRemoteFamilyMapping,
+  type RemoteFamilyBootstrapInput,
+  type RemoteFamilyBootstrapResult,
+  type RemoteFamilyMapping,
+} from "./remote-family";
