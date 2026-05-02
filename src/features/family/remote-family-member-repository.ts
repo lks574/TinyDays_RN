@@ -27,3 +27,25 @@ export async function listRemoteFamilyMembers(
 
   return members;
 }
+
+export async function removeRemoteFamilyMember(
+  client: SupabaseClient,
+  memberId: string,
+): Promise<RemoteFamilyMember> {
+  const { data, error } = await client.rpc("remove_family_member", {
+    member_id_input: memberId,
+  });
+
+  if (error !== null) {
+    throw new Error(error.message);
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const member = normalizeRemoteFamilyMembers([row]);
+
+  if (member === null) {
+    throw new Error("원격 가족 구성원 제거 결과를 해석하지 못했습니다.");
+  }
+
+  return member[0];
+}

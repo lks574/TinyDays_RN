@@ -28,6 +28,9 @@ export type RemoteFamilyInvite = {
   family_id: string;
   code: string;
   expires_at: string;
+  accepted_at?: string | null;
+  revoked_at?: string | null;
+  created_at?: string;
 };
 
 export type RemoteFamilyMember = {
@@ -89,6 +92,22 @@ export function normalizeRemoteFamilyInvite(
   }
 
   return value;
+}
+
+export function normalizeRemoteFamilyInvites(
+  value: unknown,
+): RemoteFamilyInvite[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const invites = value.map(normalizeRemoteFamilyInvite);
+
+  if (invites.some((invite) => invite === null)) {
+    return null;
+  }
+
+  return invites as RemoteFamilyInvite[];
 }
 
 export function normalizeRemoteFamilyMember(
@@ -160,11 +179,19 @@ function isRemoteFamilyInvite(value: unknown): value is RemoteFamilyInvite {
 
   const candidate = value as Record<string, unknown>;
 
+  const hasOptionalTimestamp = (key: string) =>
+    candidate[key] === undefined ||
+    candidate[key] === null ||
+    typeof candidate[key] === "string";
+
   return (
     typeof candidate.invite_id === "string" &&
     typeof candidate.family_id === "string" &&
     typeof candidate.code === "string" &&
-    typeof candidate.expires_at === "string"
+    typeof candidate.expires_at === "string" &&
+    hasOptionalTimestamp("accepted_at") &&
+    hasOptionalTimestamp("revoked_at") &&
+    hasOptionalTimestamp("created_at")
   );
 }
 

@@ -21,6 +21,7 @@ export {
   createRemoteFamilyMapping,
   normalizeRemoteFamilyBootstrapResult,
   normalizeRemoteFamilyInvite,
+  normalizeRemoteFamilyInvites,
   normalizeRemoteFamilyMember,
   normalizeRemoteFamilyMembers,
   normalizeRemoteFamilyMapping,

@@ -9,9 +9,14 @@ export {
 } from "./remote-family-bootstrap-repository";
 export {
   acceptRemoteFamilyInvite,
+  cancelRemoteFamilyInvite,
   createRemoteFamilyInvite,
+  listPendingRemoteFamilyInvites,
 } from "./remote-family-invite-repository";
-export { listRemoteFamilyMembers } from "./remote-family-member-repository";
+export {
+  listRemoteFamilyMembers,
+  removeRemoteFamilyMember,
+} from "./remote-family-member-repository";
 export {
   createRemoteFamilyMappingRepository,
   remoteFamilyMappingRepository,

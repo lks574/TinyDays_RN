@@ -65,6 +65,19 @@ values
     now(),
     '{"provider":"email","providers":["email"]}',
     '{}'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000015',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'rls-second-parent@example.com',
+    crypt('password', gen_salt('bf')),
+    now(),
+    now(),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    '{}'
   );
 
 insert into public.families (id, name, created_by)
@@ -250,6 +263,12 @@ from public.create_family_invite(
   '10000000-0000-0000-0000-000000000011'
 );
 
+create temporary table cancel_invite_result as
+select *
+from public.create_family_invite(
+  '10000000-0000-0000-0000-000000000011'
+);
+
 do $$
 declare
   invite_count integer;
@@ -258,6 +277,22 @@ begin
 
   if invite_count != 1 then
     raise exception 'parent should create one family invite';
+  end if;
+end;
+$$;
+
+do $$
+declare
+  canceled_result record;
+begin
+  select *
+  into canceled_result
+  from public.cancel_family_invite(
+    (select invite_id from cancel_invite_result limit 1)
+  );
+
+  if canceled_result.revoked_at is null then
+    raise exception 'parent should cancel pending family invite';
   end if;
 end;
 $$;
@@ -281,6 +316,25 @@ exception
 end;
 $$;
 
+do $$
+declare
+  did_fail boolean := false;
+begin
+  begin
+    perform public.cancel_family_invite(
+      (select invite_id from invite_result limit 1)
+    );
+  exception
+    when insufficient_privilege or check_violation or raise_exception then
+      did_fail := true;
+  end;
+
+  if not did_fail then
+    raise exception 'family role should not cancel family invites';
+  end if;
+end;
+$$;
+
 select set_config(
   'request.jwt.claim.sub',
   '00000000-0000-0000-0000-000000000013',
@@ -292,6 +346,24 @@ declare
   accepted_result record;
   actual_count integer;
 begin
+  begin
+    actual_count := 0;
+  end;
+
+  begin
+    perform public.accept_family_invite(
+      (select code from cancel_invite_result limit 1),
+      '취소 초대'
+    );
+  exception
+    when insufficient_privilege or check_violation or raise_exception then
+      actual_count := 1;
+  end;
+
+  if actual_count != 1 then
+    raise exception 'canceled invite should not be accepted';
+  end if;
+
   select *
   into accepted_result
   from public.accept_family_invite(
@@ -321,6 +393,199 @@ begin
 
   if actual_count != 1 then
     raise exception 'accepted invite member should read baby_logs, got %', actual_count;
+  end if;
+end;
+$$;
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000011',
+  true
+);
+
+insert into public.family_members (family_id, user_id, name, role)
+values (
+  '10000000-0000-0000-0000-000000000011',
+  '00000000-0000-0000-0000-000000000015',
+  '두 번째 보호자',
+  'parent'
+);
+
+do $$
+declare
+  actual_count integer;
+begin
+  delete from public.family_members
+  where id = '20000000-0000-0000-0000-000000000012';
+
+  select count(*) into actual_count
+  from public.family_members
+  where id = '20000000-0000-0000-0000-000000000012';
+
+  if actual_count != 1 then
+    raise exception 'direct family_members delete should be blocked';
+  end if;
+end;
+$$;
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000015',
+  true
+);
+
+insert into public.baby_logs (
+  id,
+  family_id,
+  child_id,
+  created_by,
+  log_type,
+  recorded_at,
+  source,
+  confidence
+)
+values (
+  '40000000-0000-0000-0000-000000000015',
+  '10000000-0000-0000-0000-000000000011',
+  '30000000-0000-0000-0000-000000000011',
+  '00000000-0000-0000-0000-000000000015',
+  'memo',
+  now(),
+  'manual',
+  1
+);
+
+insert into public.media_assets (
+  id,
+  family_id,
+  child_id,
+  created_by,
+  asset_type,
+  bucket,
+  object_key,
+  status,
+  file_name,
+  mime_type
+)
+values (
+  '50000000-0000-0000-0000-000000000015',
+  '10000000-0000-0000-0000-000000000011',
+  '30000000-0000-0000-0000-000000000011',
+  '00000000-0000-0000-0000-000000000015',
+  'photo',
+  'tinydays-private-media',
+  'families/10000000-0000-0000-0000-000000000011/photos/second-parent.jpg',
+  'uploaded',
+  'second-parent.jpg',
+  'image/jpeg'
+);
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000011',
+  true
+);
+
+do $$
+declare
+  removed_result record;
+  actual_count integer;
+begin
+  select *
+  into removed_result
+  from public.remove_family_member(
+    (
+      select id
+      from public.family_members
+      where user_id = '00000000-0000-0000-0000-000000000012'
+        and family_id = '10000000-0000-0000-0000-000000000011'
+    )
+  );
+
+  if removed_result.user_id != '00000000-0000-0000-0000-000000000012' then
+    raise exception 'remove_family_member should return removed member';
+  end if;
+
+  select count(*) into actual_count
+  from public.family_members
+  where user_id = '00000000-0000-0000-0000-000000000012'
+    and family_id = '10000000-0000-0000-0000-000000000011';
+
+  if actual_count != 0 then
+    raise exception 'removed family member should lose membership';
+  end if;
+end;
+$$;
+
+do $$
+declare
+  did_fail boolean := false;
+begin
+  begin
+    perform public.remove_family_member(
+      (
+        select id
+        from public.family_members
+        where user_id = '00000000-0000-0000-0000-000000000011'
+          and family_id = '10000000-0000-0000-0000-000000000011'
+      )
+    );
+  exception
+    when insufficient_privilege or check_violation or raise_exception then
+      did_fail := true;
+  end;
+
+  if not did_fail then
+    raise exception 'self removal should be blocked';
+  end if;
+end;
+$$;
+
+do $$
+declare
+  actual_count integer;
+begin
+  perform public.remove_family_member(
+    (
+      select id
+      from public.family_members
+      where user_id = '00000000-0000-0000-0000-000000000015'
+        and family_id = '10000000-0000-0000-0000-000000000011'
+    )
+  );
+
+  select count(*) into actual_count
+  from public.baby_logs
+  where created_by = '00000000-0000-0000-0000-000000000015';
+
+  if actual_count != 1 then
+    raise exception 'removed member baby_logs should be preserved';
+  end if;
+
+  select count(*) into actual_count
+  from public.media_assets
+  where created_by = '00000000-0000-0000-0000-000000000015';
+
+  if actual_count != 1 then
+    raise exception 'removed member media_assets should be preserved';
+  end if;
+end;
+$$;
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000012',
+  true
+);
+
+do $$
+declare
+  actual_count integer;
+begin
+  select count(*) into actual_count from public.baby_logs;
+
+  if actual_count != 0 then
+    raise exception 'removed family member should not read baby_logs, got %', actual_count;
   end if;
 end;
 $$;

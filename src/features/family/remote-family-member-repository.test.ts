@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { listRemoteFamilyMembers } from "./remote-family-member-repository";
+import {
+  listRemoteFamilyMembers,
+  removeRemoteFamilyMember,
+} from "./remote-family-member-repository";
 
 describe("listRemoteFamilyMembers", () => {
   it("queries remote family members by family id", async () => {
@@ -63,5 +66,36 @@ describe("listRemoteFamilyMembers", () => {
     await expect(
       listRemoteFamilyMembers({ from } as unknown as SupabaseClient, "family-1"),
     ).rejects.toThrow("원격 가족 구성원 목록을 해석하지 못했습니다.");
+  });
+
+  it("removes a remote family member through RPC", async () => {
+    const rpc = jest.fn(async () => ({
+      data: [
+        {
+          id: "member-2",
+          family_id: "family-1",
+          user_id: "user-2",
+          name: "이모",
+          role: "family",
+        },
+      ],
+      error: null,
+    }));
+
+    await expect(
+      removeRemoteFamilyMember(
+        { rpc } as unknown as SupabaseClient,
+        "member-2",
+      ),
+    ).resolves.toEqual({
+      id: "member-2",
+      family_id: "family-1",
+      user_id: "user-2",
+      name: "이모",
+      role: "family",
+    });
+    expect(rpc).toHaveBeenCalledWith("remove_family_member", {
+      member_id_input: "member-2",
+    });
   });
 });

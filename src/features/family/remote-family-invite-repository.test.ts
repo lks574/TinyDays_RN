@@ -2,7 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   acceptRemoteFamilyInvite,
+  cancelRemoteFamilyInvite,
   createRemoteFamilyInvite,
+  listPendingRemoteFamilyInvites,
 } from "./remote-family-invite-repository";
 
 describe("remote family invite repository", () => {
@@ -79,5 +81,86 @@ describe("remote family invite repository", () => {
     await expect(
       createRemoteFamilyInvite({ rpc } as unknown as SupabaseClient, "family-1"),
     ).rejects.toThrow("원격 가족 초대 결과를 해석하지 못했습니다.");
+  });
+
+  it("lists pending remote family invites", async () => {
+    const order = jest.fn(async () => ({
+      data: [
+        {
+          invite_id: "invite-1",
+          family_id: "family-1",
+          code: "A1B2C3D4",
+          expires_at: "2026-05-07T00:00:00.000Z",
+          accepted_at: null,
+          revoked_at: null,
+          created_at: "2026-04-30T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    }));
+    const gt = jest.fn(() => ({ order }));
+    const isRevokedAt = jest.fn(() => ({ gt }));
+    const isAcceptedAt = jest.fn(() => ({ is: isRevokedAt }));
+    const eq = jest.fn(() => ({ is: isAcceptedAt }));
+    const select = jest.fn(() => ({ eq }));
+    const from = jest.fn(() => ({ select }));
+
+    await expect(
+      listPendingRemoteFamilyInvites(
+        { from } as unknown as SupabaseClient,
+        "family-1",
+      ),
+    ).resolves.toEqual([
+      {
+        invite_id: "invite-1",
+        family_id: "family-1",
+        code: "A1B2C3D4",
+        expires_at: "2026-05-07T00:00:00.000Z",
+        accepted_at: null,
+        revoked_at: null,
+        created_at: "2026-04-30T00:00:00.000Z",
+      },
+    ]);
+    expect(from).toHaveBeenCalledWith("family_invites");
+    expect(eq).toHaveBeenCalledWith("family_id", "family-1");
+    expect(isAcceptedAt).toHaveBeenCalledWith("accepted_at", null);
+    expect(isRevokedAt).toHaveBeenCalledWith("revoked_at", null);
+    expect(gt).toHaveBeenCalledWith("expires_at", expect.any(String));
+    expect(order).toHaveBeenCalledWith("created_at", { ascending: false });
+  });
+
+  it("cancels a remote family invite through RPC", async () => {
+    const rpc = jest.fn(async () => ({
+      data: [
+        {
+          invite_id: "invite-1",
+          family_id: "family-1",
+          code: "A1B2C3D4",
+          expires_at: "2026-05-07T00:00:00.000Z",
+          accepted_at: null,
+          revoked_at: "2026-04-30T00:00:00.000Z",
+          created_at: "2026-04-30T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    }));
+
+    await expect(
+      cancelRemoteFamilyInvite(
+        { rpc } as unknown as SupabaseClient,
+        "invite-1",
+      ),
+    ).resolves.toEqual({
+      invite_id: "invite-1",
+      family_id: "family-1",
+      code: "A1B2C3D4",
+      expires_at: "2026-05-07T00:00:00.000Z",
+      accepted_at: null,
+      revoked_at: "2026-04-30T00:00:00.000Z",
+      created_at: "2026-04-30T00:00:00.000Z",
+    });
+    expect(rpc).toHaveBeenCalledWith("cancel_family_invite", {
+      invite_id_input: "invite-1",
+    });
   });
 });

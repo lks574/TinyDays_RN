@@ -4,6 +4,7 @@ import {
   createRemoteFamilyMapping,
   normalizeRemoteFamilyBootstrapResult,
   normalizeRemoteFamilyInvite,
+  normalizeRemoteFamilyInvites,
   normalizeRemoteFamilyMembers,
   normalizeRemoteFamilyMapping,
 } from ".";
@@ -71,14 +72,41 @@ describe("remote family normalization", () => {
         family_id: "family-1",
         code: "A1B2C3D4",
         expires_at: "2026-05-07T00:00:00.000Z",
+        accepted_at: null,
+        revoked_at: null,
+        created_at: "2026-04-30T00:00:00.000Z",
       }),
     ).toEqual({
       invite_id: "invite-1",
       family_id: "family-1",
       code: "A1B2C3D4",
       expires_at: "2026-05-07T00:00:00.000Z",
+      accepted_at: null,
+      revoked_at: null,
+      created_at: "2026-04-30T00:00:00.000Z",
     });
     expect(normalizeRemoteFamilyInvite({ code: "A1B2C3D4" })).toBeNull();
+  });
+
+  it("normalizes remote family invite lists", () => {
+    expect(
+      normalizeRemoteFamilyInvites([
+        {
+          invite_id: "invite-1",
+          family_id: "family-1",
+          code: "A1B2C3D4",
+          expires_at: "2026-05-07T00:00:00.000Z",
+        },
+      ]),
+    ).toEqual([
+      {
+        invite_id: "invite-1",
+        family_id: "family-1",
+        code: "A1B2C3D4",
+        expires_at: "2026-05-07T00:00:00.000Z",
+      },
+    ]);
+    expect(normalizeRemoteFamilyInvites([{ code: "A1B2C3D4" }])).toBeNull();
   });
 
   it("normalizes remote family member values", () => {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,11 +25,14 @@ import { getSupabaseClient, useSupabaseAuth } from '../../src/features/auth';
 import {
   acceptRemoteFamilyInvite,
   bootstrapRemoteFamily,
+  cancelRemoteFamilyInvite,
   createRemoteFamilyInvite,
   getExistingRemoteFamily,
+  listPendingRemoteFamilyInvites,
   listRemoteFamilyMembers,
   localFamilyContextRepository,
   remoteFamilyMappingRepository,
+  removeRemoteFamilyMember,
 } from '../../src/features/family';
 import {
   Badge,
@@ -61,6 +65,9 @@ export default function FamilyScreen() {
   const [remoteInvite, setRemoteInvite] = useState<RemoteFamilyInvite | null>(
     null,
   );
+  const [remoteInvites, setRemoteInvites] = useState<
+    readonly RemoteFamilyInvite[] | null
+  >(null);
   const [remoteMembers, setRemoteMembers] = useState<
     readonly RemoteFamilyMember[] | null
   >(null);
@@ -102,6 +109,7 @@ export default function FamilyScreen() {
     if (auth.session === null) {
       setRemoteMapping(null);
       setRemoteInvite(null);
+      setRemoteInvites(null);
       setRemoteMembers(null);
       setRemoteStatusMessage('');
       setRemoteErrorMessage('');
@@ -114,6 +122,7 @@ export default function FamilyScreen() {
     if (client === null) {
       setRemoteMapping(null);
       setRemoteInvite(null);
+      setRemoteInvites(null);
       setRemoteMembers(null);
       return;
     }
@@ -169,52 +178,66 @@ export default function FamilyScreen() {
     void loadRemoteFamilyConnection();
   }, [loadRemoteFamilyConnection]);
 
+  const loadRemoteManagementState = useCallback(async () => {
+    if (auth.session === null || remoteMapping === null) {
+      setRemoteMembers(null);
+      setRemoteInvites(null);
+      setRemoteMembersErrorMessage('');
+      setIsRemoteMembersLoading(false);
+      return;
+    }
+
+    const client = getSupabaseClient();
+
+    if (client === null) {
+      setRemoteMembers(null);
+      setRemoteInvites(null);
+      setRemoteMembersErrorMessage('');
+      setIsRemoteMembersLoading(false);
+      return;
+    }
+
+    setIsRemoteMembersLoading(true);
+
+    try {
+      const members = await listRemoteFamilyMembers(
+        client,
+        remoteMapping.remote_family_id,
+      );
+      const currentMember = members.find(
+        (member) => member.user_id === auth.session?.user.id,
+      );
+      const invites =
+        currentMember?.role === 'parent'
+          ? await listPendingRemoteFamilyInvites(
+              client,
+              remoteMapping.remote_family_id,
+            )
+          : [];
+
+      setRemoteMembers(members);
+      setRemoteInvites(invites);
+      setRemoteMembersErrorMessage('');
+    } catch {
+      setRemoteMembers(null);
+      setRemoteInvites(null);
+      setRemoteMembersErrorMessage(
+        '원격 구성원 목록을 불러오지 못해 로컬 구성원을 표시합니다.',
+      );
+    } finally {
+      setIsRemoteMembersLoading(false);
+    }
+  }, [auth.session, remoteMapping]);
+
   useEffect(() => {
     let isActive = true;
 
     async function loadRemoteMembers() {
-      if (auth.session === null || remoteMapping === null) {
-        setRemoteMembers(null);
-        setRemoteMembersErrorMessage('');
-        setIsRemoteMembersLoading(false);
+      if (!isActive) {
         return;
       }
 
-      const client = getSupabaseClient();
-
-      if (client === null) {
-        setRemoteMembers(null);
-        setRemoteMembersErrorMessage('');
-        setIsRemoteMembersLoading(false);
-        return;
-      }
-
-      setIsRemoteMembersLoading(true);
-
-      try {
-        const members = await listRemoteFamilyMembers(
-          client,
-          remoteMapping.remote_family_id,
-        );
-
-        if (!isActive) {
-          return;
-        }
-
-        setRemoteMembers(members);
-        setRemoteMembersErrorMessage('');
-      } catch {
-        if (isActive) {
-          setRemoteMembers(null);
-          setRemoteMembersErrorMessage(
-            '원격 구성원 목록을 불러오지 못해 로컬 구성원을 표시합니다.',
-          );
-        }
-      } finally {
-        if (isActive) {
-          setIsRemoteMembersLoading(false);
-        }
-      }
+      await loadRemoteManagementState();
     }
 
     void loadRemoteMembers();
@@ -222,7 +245,7 @@ export default function FamilyScreen() {
     return () => {
       isActive = false;
     };
-  }, [auth.session, remoteMapping]);
+  }, [loadRemoteManagementState]);
 
   function syncForm(context: FamilyContext) {
     const child = getSelectedChild(context);
@@ -368,6 +391,9 @@ export default function FamilyScreen() {
       );
 
       setRemoteInvite(invite);
+      setRemoteInvites((previousInvites) =>
+        previousInvites === null ? [invite] : [invite, ...previousInvites],
+      );
       setRemoteStatusMessage('가족 초대 코드를 만들었습니다.');
     } catch {
       setRemoteInvite(null);
@@ -430,6 +456,85 @@ export default function FamilyScreen() {
     }
   }
 
+  function handleCancelRemoteInvite(invite: RemoteFamilyInvite) {
+    Alert.alert('초대 취소', `${invite.code} 초대를 취소할까요?`, [
+      { text: '아니요', style: 'cancel' },
+      {
+        text: '취소',
+        style: 'destructive',
+        onPress: () => {
+          void cancelInvite(invite.invite_id);
+        },
+      },
+    ]);
+  }
+
+  async function cancelInvite(inviteId: string) {
+    const client = getSupabaseClient();
+
+    if (auth.session === null || remoteMapping === null || client === null) {
+      setRemoteErrorMessage('원격 가족 연결이 필요합니다.');
+      setRemoteStatusMessage('');
+      return;
+    }
+
+    setIsRemoteLoading(true);
+    setRemoteErrorMessage('');
+    setRemoteStatusMessage('');
+
+    try {
+      await cancelRemoteFamilyInvite(client, inviteId);
+      setRemoteInvite((invite) =>
+        invite?.invite_id === inviteId ? null : invite,
+      );
+      await loadRemoteManagementState();
+      setRemoteStatusMessage('가족 초대를 취소했습니다.');
+    } catch {
+      setRemoteErrorMessage('가족 초대를 취소하지 못했습니다.');
+      setRemoteStatusMessage('');
+    } finally {
+      setIsRemoteLoading(false);
+    }
+  }
+
+  function handleRemoveRemoteMember(member: VisibleFamilyMember) {
+    Alert.alert('구성원 제거', `${member.name}님을 가족에서 제거할까요?`, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '제거',
+        style: 'destructive',
+        onPress: () => {
+          void removeMember(member.id);
+        },
+      },
+    ]);
+  }
+
+  async function removeMember(memberId: string) {
+    const client = getSupabaseClient();
+
+    if (auth.session === null || remoteMapping === null || client === null) {
+      setRemoteErrorMessage('원격 가족 연결이 필요합니다.');
+      setRemoteStatusMessage('');
+      return;
+    }
+
+    setIsRemoteLoading(true);
+    setRemoteErrorMessage('');
+    setRemoteStatusMessage('');
+
+    try {
+      await removeRemoteFamilyMember(client, memberId);
+      await loadRemoteManagementState();
+      setRemoteStatusMessage('가족 구성원을 제거했습니다.');
+    } catch {
+      setRemoteErrorMessage('가족 구성원을 제거하지 못했습니다.');
+      setRemoteStatusMessage('');
+    } finally {
+      setIsRemoteLoading(false);
+    }
+  }
+
   const selectedChild = getSelectedChild(familyContext);
   const dayCount = calculateDayCount(
     selectedChild.birth_date,
@@ -437,6 +542,10 @@ export default function FamilyScreen() {
   );
   const currentUserId = auth.session?.user.id ?? null;
   const visibleMembers = getVisibleFamilyMembers(familyContext, remoteMembers);
+  const currentRemoteMember = remoteMembers?.find(
+    (member) => member.user_id === currentUserId,
+  );
+  const canManageRemoteFamily = currentRemoteMember?.role === 'parent';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -607,6 +716,35 @@ export default function FamilyScreen() {
                           </Caption>
                         </View>
                       ) : null}
+                      {remoteInvites !== null && remoteInvites.length > 0 ? (
+                        <View style={styles.pendingInviteList}>
+                          {remoteInvites.map((invite) => (
+                            <View
+                              key={invite.invite_id}
+                              style={styles.pendingInviteRow}
+                            >
+                              <View style={styles.pendingInviteText}>
+                                <Mono tone="ink2">{invite.code}</Mono>
+                                <Caption tone="ink4">
+                                  만료: {formatDateTime(invite.expires_at)}
+                                </Caption>
+                              </View>
+                              {canManageRemoteFamily ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={isRemoteLoading}
+                                  onPress={() =>
+                                    handleCancelRemoteInvite(invite)
+                                  }
+                                >
+                                  취소
+                                </Button>
+                              ) : null}
+                            </View>
+                          ))}
+                        </View>
+                      ) : null}
                     </Stack>
                     <Button
                       variant="secondary"
@@ -742,6 +880,8 @@ export default function FamilyScreen() {
                 currentUserId,
                 familyContext.current_member.id,
               );
+              const canRemoveMember =
+                canManageRemoteFamily && member.source === 'remote' && !isCurrent;
 
               return (
                 <ListRow
@@ -761,18 +901,30 @@ export default function FamilyScreen() {
                   }
                   sub={getMemberSubtitle(member, isCurrent)}
                   trailing={
-                    <View style={styles.roleBadge}>
-                      <View
-                        style={[
-                          styles.roleDot,
-                          {
-                            backgroundColor: getRoleColor(member.role),
-                          },
-                        ]}
-                      />
-                      <Text style={styles.roleText}>
-                        {getRoleLabel(member.role)}
-                      </Text>
+                    <View style={styles.memberTrailing}>
+                      <View style={styles.roleBadge}>
+                        <View
+                          style={[
+                            styles.roleDot,
+                            {
+                              backgroundColor: getRoleColor(member.role),
+                            },
+                          ]}
+                        />
+                        <Text style={styles.roleText}>
+                          {getRoleLabel(member.role)}
+                        </Text>
+                      </View>
+                      {canRemoveMember ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={isRemoteLoading}
+                          onPress={() => handleRemoveRemoteMember(member)}
+                        >
+                          제거
+                        </Button>
+                      ) : null}
                     </View>
                   }
                   divider={index < visibleMembers.length - 1}
@@ -938,6 +1090,22 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
     backgroundColor: theme.colors.bg,
   },
+  pendingInviteList: {
+    gap: theme.spacing[2],
+  },
+  pendingInviteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing[3],
+    paddingVertical: theme.spacing[2],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.line,
+  },
+  pendingInviteText: {
+    flex: 1,
+    minWidth: 0,
+    gap: theme.spacing[1],
+  },
   remoteIdPanel: {
     gap: theme.spacing[1],
   },
@@ -1024,6 +1192,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceSunk,
     paddingHorizontal: theme.spacing[3],
     paddingVertical: theme.spacing[1],
+  },
+  memberTrailing: {
+    flexShrink: 0,
+    alignItems: 'flex-end',
+    gap: theme.spacing[2],
   },
   roleDot: {
     width: 5,

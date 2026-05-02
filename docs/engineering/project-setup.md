@@ -144,7 +144,11 @@ SPEC-FAMILY-004 기준으로 가족 초대 1차는 Supabase RPC와 초대 코드
 - 로그인한 사용자는 `accept_family_invite` RPC에 초대 코드를 입력해 해당 원격 가족의 `family` 역할 구성원이 된다.
 - 초대 수락 결과는 기존 `RemoteFamilyMapping`에 저장해 기록 백업과 사진 원격 저장/조회에서 같은 mapping 구조를 사용한다.
 - 모바일 앱은 Supabase anon key와 Auth session만 사용하며 service role key를 갖지 않는다.
-- 초대 취소/재발급 관리, 구성원 제거, 여러 가족 전환은 후속 작업으로 둔다.
+- SPEC-FAMILY-006 기준으로 `parent`는 대기 중인 초대를 취소할 수 있다.
+- SPEC-FAMILY-006 기준으로 `parent`는 다른 구성원을 제거할 수 있지만 자기 자신 제거는 1차에서 금지한다.
+- 구성원 제거는 원격 가족 접근권 제거로 처리하고 기존 `baby_logs`, 사진 metadata, R2 object는 삭제하지 않는다.
+- 직접 `family_members` delete는 허용하지 않고 `remove_family_member` RPC에서 마지막 `parent` 보호와 자기 자신 제거 금지를 검증한다.
+- 여러 가족 전환, 가족 나가기, 구성원 역할 변경은 후속 작업으로 둔다.
 
 ## R2 사진 원격 저장
 
