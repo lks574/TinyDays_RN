@@ -150,6 +150,16 @@ SPEC-FAMILY-004 기준으로 가족 초대 1차는 Supabase RPC와 초대 코드
 - 직접 `family_members` delete는 허용하지 않고 `remove_family_member` RPC에서 마지막 `parent` 보호와 자기 자신 제거 금지를 검증한다.
 - 여러 가족 전환, 가족 나가기, 구성원 역할 변경은 후속 작업으로 둔다.
 
+## 원격 baby_logs 조회
+
+SPEC-LOG-006 기준으로 기록 탭은 로컬 `AsyncStorage` 기록을 먼저 불러온 뒤, Supabase session과 원격 family mapping이 있으면 선택된 날짜의 원격 `baby_logs`를 조회한다.
+
+- 원격 조회는 Supabase RLS의 `family_members` 기준 select policy를 따른다.
+- 로컬 기록과 원격 백업 row가 같은 기록으로 판단되면 로컬 기록을 우선하고 중복 표시하지 않는다.
+- 원격 조회 실패는 기록 탭 표시를 막지 않고 이 기기의 로컬 기록만 표시한다.
+- 1차 downsync는 read-through 조회이며 원격 row를 `AsyncStorage`에 영구 저장하지 않는다.
+- 수정/삭제 downsync, 충돌 해결, 원격-only 과거 날짜 발견, Expo SQLite 이전은 후속 작업으로 둔다.
+
 ## R2 사진 원격 저장
 
 PR-17 기준으로 사진 원본 원격 저장은 Supabase Edge Function `media-r2-url`이 담당한다.
@@ -221,6 +231,7 @@ SPEC-PHOTO-006 기준으로 사진 삭제는 local-first 흐름을 유지하면�
 8. PR-19에서 사진 원격 업로드 실패 재시도 queue를 추가한다.
 9. SPEC-PHOTO-006에서 사진 삭제와 R2 object 정리 경로를 추가한다.
 10. SPEC-FAMILY-004에서 가족 초대와 구성원 연결 1차를 추가한다.
+11. SPEC-LOG-006에서 `baby_logs` 원격 read-through downsync를 추가한다.
 
 ## 초기 도메인 모듈
 

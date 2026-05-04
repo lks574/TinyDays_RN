@@ -28,6 +28,12 @@ export {
 } from "./baby-log-backup-service";
 
 export {
+  loadBabyLogsWithRemotePull,
+  type LoadBabyLogsDependencies,
+  type LoadBabyLogsResult,
+} from "./baby-log-library-service";
+
+export {
   createRemoteBabyLogBackupQueueItem,
   createRemoteBabyLogBackupQueueRepository,
   remoteBabyLogBackupQueueRepository,
@@ -35,4 +41,7 @@ export {
   type RemoteBabyLogBackupQueueRepository,
 } from "./remote-baby-log-backup-queue-repository";
 
-export { backupRemoteBabyLog } from "./remote-baby-log-repository";
+export {
+  backupRemoteBabyLog,
+  listRemoteBabyLogsForDate,
+} from "./remote-baby-log-repository";

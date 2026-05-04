@@ -10,7 +10,11 @@ import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { BabyLog, BabyLogType } from '../../src/domain/baby-logs';
-import { localBabyLogRepository } from '../../src/features/logging';
+import { remoteFamilyMappingRepository } from '../../src/features/family';
+import {
+  loadBabyLogsWithRemotePull,
+  localBabyLogRepository,
+} from '../../src/features/logging';
 import {
   createTimelineDateOptions,
   getBabyLogTypeLabel,
@@ -56,6 +60,7 @@ export default function LogsScreen() {
   const [viewMode, setViewMode] = useState<RecordsViewMode>('timeline');
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [storageError, setStorageError] = useState('');
+  const [remoteStatusMessage, setRemoteStatusMessage] = useState('');
 
   const dateOptions = useMemo(
     () => createTimelineDateOptions(logs, new Date().toISOString()),
@@ -82,15 +87,25 @@ export default function LogsScreen() {
       let isActive = true;
 
       setIsLoadingLogs(true);
-      localBabyLogRepository
-        .listLogs()
-        .then((storedLogs) => {
+      loadBabyLogsWithRemotePull({
+        dateKey: selectedDateKey,
+        localRepository: localBabyLogRepository,
+        mappingRepository: remoteFamilyMappingRepository,
+      })
+        .then((result) => {
           if (!isActive) {
             return;
           }
 
+          const storedLogs = result.logs;
+
           setLogs(storedLogs);
           setStorageError('');
+          setRemoteStatusMessage(
+            result.remoteStatus === 'failed'
+              ? '원격 기록을 불러오지 못해 이 기기의 기록만 표시합니다.'
+              : '',
+          );
 
           const nextDateOptions = createTimelineDateOptions(
             storedLogs,
@@ -104,6 +119,7 @@ export default function LogsScreen() {
         .catch(() => {
           if (isActive) {
             setStorageError('저장된 기록을 불러오지 못했습니다.');
+            setRemoteStatusMessage('');
           }
         })
         .finally(() => {
@@ -172,6 +188,9 @@ export default function LogsScreen() {
 
         {storageError.length > 0 ? (
           <Text style={styles.errorText}>{storageError}</Text>
+        ) : null}
+        {remoteStatusMessage.length > 0 ? (
+          <Text style={styles.remoteStatusText}>{remoteStatusMessage}</Text>
         ) : null}
 
         {viewMode === 'calendar' ? (
@@ -719,6 +738,13 @@ const styles = StyleSheet.create({
     color: '#B42318',
     fontSize: 13,
     fontWeight: '700',
+  },
+  remoteStatusText: {
+    marginTop: 8,
+    marginHorizontal: 24,
+    color: theme.colors.ink4,
+    fontSize: 12,
+    fontWeight: '600',
   },
   viewToggle: {
     flexDirection: 'row',
