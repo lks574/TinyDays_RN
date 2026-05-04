@@ -1,4 +1,5 @@
 import { createBabyLog } from "../../domain/baby-logs";
+import { createMemorySQLiteDatabase } from "../../shared/local-db/test-database";
 import { createLocalBabyLogRepository } from "./local-baby-log-repository";
 
 function createMemoryStorage(initialValue: string | null = null) {
@@ -36,16 +37,22 @@ describe("createLocalBabyLogRepository", () => {
       },
       { id: "newer", now: "2026-04-28T02:00:00.000Z" },
     );
+    const database = createMemorySQLiteDatabase();
     const repository = createLocalBabyLogRepository(
-      createMemoryStorage(JSON.stringify([olderLog, newerLog])),
+      {
+        database,
+        legacyStorage: createMemoryStorage(JSON.stringify([olderLog, newerLog])),
+      },
     );
 
     await expect(repository.listLogs()).resolves.toEqual([newerLog, olderLog]);
   });
 
   it("saves a new log and returns the persisted list", async () => {
-    const storage = createMemoryStorage();
-    const repository = createLocalBabyLogRepository(storage);
+    const repository = createLocalBabyLogRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: null,
+    });
     const log = createBabyLog(
       {
         child_id: "local-child",
@@ -58,14 +65,13 @@ describe("createLocalBabyLogRepository", () => {
     );
 
     await expect(repository.saveLog(log)).resolves.toEqual([log]);
-    expect(storage.setItem).toHaveBeenCalledWith(
-      "tinydays:baby_logs",
-      JSON.stringify([log]),
-    );
   });
 
   it("serializes overlapping save requests", async () => {
-    const repository = createLocalBabyLogRepository(createMemoryStorage());
+    const repository = createLocalBabyLogRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: null,
+    });
     const firstLog = createBabyLog(
       {
         child_id: "local-child",
@@ -93,7 +99,10 @@ describe("createLocalBabyLogRepository", () => {
   });
 
   it("recovers with an empty list when stored JSON is invalid", async () => {
-    const repository = createLocalBabyLogRepository(createMemoryStorage("{"));
+    const repository = createLocalBabyLogRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: createMemoryStorage("{"),
+    });
 
     await expect(repository.listLogs()).resolves.toEqual([]);
   });

@@ -39,6 +39,7 @@ const photo = createBabyPhoto(
 describe("saveBabyPhotoWithRemoteUpload", () => {
   it("saves locally first and uploads remotely when session and mapping exist", async () => {
     const localRepository = createMemoryPhotoRepository();
+    const queueRepository = createMemoryQueueRepository();
     const requestUploadPlan = jest.fn(async () => ({
       media_asset_id: "media-1",
       object_key: "families/remote-family/children/remote-child/photos/media-1.jpg",
@@ -57,6 +58,7 @@ describe("saveBabyPhotoWithRemoteUpload", () => {
         saveMapping: jest.fn(),
       },
       now: () => "2026-04-30T13:01:00.000Z",
+      queueRepository,
       requestUploadPlan,
       uploadFile,
     });

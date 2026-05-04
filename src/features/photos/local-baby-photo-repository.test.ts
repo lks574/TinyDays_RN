@@ -1,4 +1,5 @@
 import { createBabyPhoto } from "../../domain/photos";
+import { createMemorySQLiteDatabase } from "../../shared/local-db/test-database";
 import { createLocalBabyPhotoRepository } from "./local-baby-photo-repository";
 
 function createMemoryStorage(initialValue: string | null = null) {
@@ -29,9 +30,12 @@ describe("createLocalBabyPhotoRepository", () => {
   it("loads stored baby photos in recent-first order", async () => {
     const olderPhoto = createPhoto("older", "2026-04-28T01:00:00.000Z");
     const newerPhoto = createPhoto("newer", "2026-04-28T02:00:00.000Z");
-    const repository = createLocalBabyPhotoRepository(
-      createMemoryStorage(JSON.stringify([olderPhoto, newerPhoto])),
-    );
+    const repository = createLocalBabyPhotoRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: createMemoryStorage(
+        JSON.stringify([olderPhoto, newerPhoto]),
+      ),
+    });
 
     await expect(repository.listPhotos()).resolves.toEqual([
       newerPhoto,
@@ -40,36 +44,35 @@ describe("createLocalBabyPhotoRepository", () => {
   });
 
   it("saves a new photo and returns the persisted list", async () => {
-    const storage = createMemoryStorage();
-    const repository = createLocalBabyPhotoRepository(storage);
+    const repository = createLocalBabyPhotoRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: null,
+    });
     const photo = createPhoto("photo-1", "2026-04-28T03:00:00.000Z");
 
     await expect(repository.savePhoto(photo)).resolves.toEqual([photo]);
-    expect(storage.setItem).toHaveBeenCalledWith(
-      "tinydays:baby_photos",
-      JSON.stringify([photo]),
-    );
   });
 
   it("deletes a photo by id and keeps the remaining photos", async () => {
     const olderPhoto = createPhoto("older", "2026-04-28T01:00:00.000Z");
     const newerPhoto = createPhoto("newer", "2026-04-28T02:00:00.000Z");
-    const storage = createMemoryStorage(
-      JSON.stringify([newerPhoto, olderPhoto]),
-    );
-    const repository = createLocalBabyPhotoRepository(storage);
+    const repository = createLocalBabyPhotoRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: createMemoryStorage(
+        JSON.stringify([newerPhoto, olderPhoto]),
+      ),
+    });
 
     await expect(repository.deletePhoto("newer")).resolves.toEqual([
       olderPhoto,
     ]);
-    expect(storage.setItem).toHaveBeenCalledWith(
-      "tinydays:baby_photos",
-      JSON.stringify([olderPhoto]),
-    );
   });
 
   it("recovers with an empty list when stored JSON is invalid", async () => {
-    const repository = createLocalBabyPhotoRepository(createMemoryStorage("{"));
+    const repository = createLocalBabyPhotoRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: createMemoryStorage("{"),
+    });
 
     await expect(repository.listPhotos()).resolves.toEqual([]);
   });

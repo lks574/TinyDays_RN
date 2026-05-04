@@ -1,4 +1,5 @@
 import { createBabyPhoto } from "../../domain/photos";
+import { createMemorySQLiteDatabase } from "../../shared/local-db/test-database";
 import {
   createRemoteBabyPhotoUploadQueueItem,
   createRemoteBabyPhotoUploadQueueRepository,
@@ -17,8 +18,10 @@ const photo = createBabyPhoto(
 
 describe("remoteBabyPhotoUploadQueueRepository", () => {
   it("saves and loads queue items oldest first", async () => {
-    const storage = createMemoryStorage();
-    const repository = createRemoteBabyPhotoUploadQueueRepository(storage);
+    const repository = createRemoteBabyPhotoUploadQueueRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: null,
+    });
     const newerItem = createRemoteBabyPhotoUploadQueueItem({
       photo,
       userId: "user-1",
@@ -40,9 +43,10 @@ describe("remoteBabyPhotoUploadQueueRepository", () => {
   });
 
   it("replaces an existing item with the same local photo id", async () => {
-    const repository = createRemoteBabyPhotoUploadQueueRepository(
-      createMemoryStorage(),
-    );
+    const repository = createRemoteBabyPhotoUploadQueueRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: null,
+    });
     const firstItem = createRemoteBabyPhotoUploadQueueItem({
       attemptCount: 1,
       lastError: "network",
@@ -65,9 +69,10 @@ describe("remoteBabyPhotoUploadQueueRepository", () => {
   });
 
   it("removes an item by local photo id", async () => {
-    const repository = createRemoteBabyPhotoUploadQueueRepository(
-      createMemoryStorage(),
-    );
+    const repository = createRemoteBabyPhotoUploadQueueRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: null,
+    });
     const item = createRemoteBabyPhotoUploadQueueItem({
       photo,
       userId: "user-1",
@@ -81,9 +86,10 @@ describe("remoteBabyPhotoUploadQueueRepository", () => {
   });
 
   it("recovers with an empty list when stored JSON is invalid", async () => {
-    const repository = createRemoteBabyPhotoUploadQueueRepository(
-      createMemoryStorage("not-json"),
-    );
+    const repository = createRemoteBabyPhotoUploadQueueRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: createMemoryStorage("not-json"),
+    });
 
     await expect(repository.listItems()).resolves.toEqual([]);
   });

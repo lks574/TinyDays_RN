@@ -259,6 +259,26 @@ SPEC-FAMILY-004에서는 원격 가족 구성원 합류를 `family_invites` 테�
 
 SPEC-FAMILY-006에서는 가족 구성원 제거를 기존 가족 데이터 삭제가 아니라 원격 가족 접근권 제거로 정의합니다. 제거된 구성원이 만든 `baby_logs`, `media_assets`, R2 object는 삭제하지 않고, 남아 있는 가족 구성원의 타임라인과 사진 기록에서 계속 조회할 수 있게 유지합니다.
 
+## ADR-015: `baby_logs`, 사진 metadata, sync queue는 Expo SQLite로 이전
+
+상태: 채택
+
+SPEC-CORE-001부터 앱의 핵심 local-first 저장소는 Expo SQLite `tinydays.db`를 기본 경로로 사용합니다. `baby_logs`는 `baby_logs` 테이블, 사진 metadata는 `baby_photo_metadata` 테이블에 저장하고, 기록 백업 실패와 사진 업로드 실패는 단일 `sync_queue` 테이블에 `queue_type`으로 구분해 저장합니다.
+
+근거:
+
+- 날짜별 기록 조회, 사진 metadata 삭제, 원격 재시도 queue가 늘어나면서 key-value 저장소보다 query 가능한 로컬 DB가 필요해졌습니다.
+- 기록과 사진 흐름은 네트워크와 무관하게 먼저 로컬에 저장되어야 합니다.
+- 기록 백업 queue와 사진 업로드 queue를 단일 테이블로 모으면 이후 백그라운드 재시도, 상태 표시, queue 정리에 같은 기반을 사용할 수 있습니다.
+- 기존 UI와 service 계층은 repository interface를 유지하므로 저장소 이전의 화면 영향이 작습니다.
+
+제약:
+
+- 이번 단계는 `BabyLog`, `BabyPhoto`, queue item 전체를 JSON payload로 보관하고 정렬과 식별에 필요한 최소 column만 둡니다.
+- 고급 필터, 대량 분석, conflict resolution이 필요해지면 typed column과 migration을 추가합니다.
+- 기존 AsyncStorage records는 SQLite table이 비어 있을 때 가져오지만, legacy key 삭제는 이번 범위에 포함하지 않습니다.
+- 가족 context와 remote family mapping은 아직 기존 AsyncStorage 저장소를 유지합니다.
+
 초대 취소는 기존 `family_invites.revoked_at`을 사용합니다. 수락, 취소, 만료된 초대는 가족 합류에 사용할 수 없습니다.
 
 근거:

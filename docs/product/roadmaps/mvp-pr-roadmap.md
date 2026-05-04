@@ -447,6 +447,27 @@ PR 작업이 끝나도 커밋 전이면 `진행 중`으로 둔다. 완료 기준
 - 가족 구성원이 아닌 사용자는 Supabase RLS에 따라 원격 기록을 조회할 수 없다.
 - 원격 조회 실패가 기존 로컬 기록 표시를 막지 않는다.
 
+## PR-22: Expo SQLite 로컬 저장소와 sync queue 통합
+
+상태: 완료
+
+목표: `baby_logs`, 사진 metadata, 원격 재시도 queue를 Expo SQLite 기반 local-first 저장소로 이전한다.
+
+범위:
+
+- `expo-sqlite`를 앱 의존성에 추가한다.
+- `baby_logs`를 SQLite `baby_logs` 테이블에 저장한다.
+- 사진 metadata를 SQLite `baby_photo_metadata` 테이블에 저장한다.
+- 기록 백업 queue와 사진 업로드 queue를 단일 SQLite `sync_queue` 테이블에 통합한다.
+- 기존 AsyncStorage records를 table이 비어 있을 때 가져온다.
+- 가족 context와 remote family mapping 이전은 후속 작업으로 둔다.
+
+완료 기준:
+
+- 로컬 기록과 사진 metadata 저장/조회 테스트가 SQLite adapter 기준으로 통과한다.
+- 기록 백업 queue와 사진 업로드 queue가 `sync_queue`에서 `queue_type`별로 분리되어 동작한다.
+- 저장소 결정이 ADR과 세팅 문서에 반영된다.
+
 ## 추천 진행 순서
 
 1. PR-01부터 PR-06까지 진행해 핵심 기록 루프를 검증한다.
@@ -460,3 +481,4 @@ PR 작업이 끝나도 커밋 전이면 `진행 중`으로 둔다. 완료 기준
 9. PR-19에서 사진 원격 업로드 실패 재시도 queue를 붙인다.
 10. PR-20에서 가족 초대와 구성원 연결을 붙인다.
 11. PR-21에서 `baby_logs` 원격 read-through downsync와 다중 기기 조회를 붙인다.
+12. PR-22에서 `baby_logs`, 사진 metadata, sync queue를 Expo SQLite로 통합 이전한다.

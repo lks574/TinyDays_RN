@@ -6,11 +6,11 @@ import {
   type BabyLogRepository,
   type BabyLogSource,
 } from "../../domain/baby-logs";
-
-type KeyValueStorage = {
-  getItem: (key: string) => Promise<string | null>;
-  setItem: (key: string, value: string) => Promise<void>;
-};
+import {
+  createSQLiteJsonTable,
+  type KeyValueStorage,
+  type TinyDaysSQLiteDatabase,
+} from "../../shared/local-db/tinydays-sqlite";
 
 const BABY_LOGS_STORAGE_KEY = "tinydays:baby_logs";
 const BABY_LOG_SOURCES: readonly BabyLogSource[] = [
@@ -21,59 +21,37 @@ const BABY_LOG_SOURCES: readonly BabyLogSource[] = [
   "imported",
 ];
 
-export function createLocalBabyLogRepository(
-  storage: KeyValueStorage = AsyncStorage,
-): BabyLogRepository {
-  let pendingSave: Promise<void> = Promise.resolve();
+export type CreateLocalBabyLogRepositoryOptions = {
+  database?: TinyDaysSQLiteDatabase | Promise<TinyDaysSQLiteDatabase>;
+  legacyStorage?: KeyValueStorage | null;
+};
+
+export function createLocalBabyLogRepository({
+  database,
+  legacyStorage = AsyncStorage,
+}: CreateLocalBabyLogRepositoryOptions = {}): BabyLogRepository {
+  const table = createSQLiteJsonTable({
+    database,
+    tableName: "baby_logs",
+    legacyStorage,
+    legacyStorageKey: BABY_LOGS_STORAGE_KEY,
+    isRecord: isBabyLog,
+    getId: (log) => log.id,
+    getSortValue: (log) => log.recorded_at,
+    sort: sortLogsByRecent,
+  });
 
   return {
     async listLogs() {
-      return readLogs(storage);
+      return table.list();
     },
     async saveLog(log) {
-      const saveOperation = pendingSave.then(async () => {
-        const logs = await readLogs(storage);
-        const nextLogs = sortLogsByRecent([
-          log,
-          ...logs.filter((item) => item.id !== log.id),
-        ]);
-
-        await storage.setItem(BABY_LOGS_STORAGE_KEY, JSON.stringify(nextLogs));
-
-        return nextLogs;
-      });
-
-      pendingSave = saveOperation.then(
-        () => undefined,
-        () => undefined,
-      );
-
-      return saveOperation;
+      return table.upsert(log);
     },
   };
 }
 
 export const localBabyLogRepository = createLocalBabyLogRepository();
-
-async function readLogs(storage: KeyValueStorage): Promise<BabyLog[]> {
-  const rawLogs = await storage.getItem(BABY_LOGS_STORAGE_KEY);
-
-  if (rawLogs === null) {
-    return [];
-  }
-
-  try {
-    const parsedLogs: unknown = JSON.parse(rawLogs);
-
-    if (!Array.isArray(parsedLogs)) {
-      return [];
-    }
-
-    return sortLogsByRecent(parsedLogs.filter(isBabyLog));
-  } catch {
-    return [];
-  }
-}
 
 function sortLogsByRecent(logs: readonly BabyLog[]): BabyLog[] {
   return [...logs].sort(

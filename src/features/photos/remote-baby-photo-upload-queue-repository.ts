@@ -1,11 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { BabyPhoto } from "../../domain/photos";
-
-type KeyValueStorage = {
-  getItem: (key: string) => Promise<string | null>;
-  setItem: (key: string, value: string) => Promise<void>;
-};
+import {
+  createSQLiteSyncQueue,
+  type KeyValueStorage,
+  type TinyDaysSQLiteDatabase,
+} from "../../shared/local-db/tinydays-sqlite";
 
 const REMOTE_BABY_PHOTO_UPLOAD_QUEUE_STORAGE_KEY =
   "tinydays:remote_baby_photo_upload_queue";
@@ -29,61 +29,36 @@ export type RemoteBabyPhotoUploadQueueRepository = {
   removeItem: (localPhotoId: string) => Promise<RemoteBabyPhotoUploadQueueItem[]>;
 };
 
-export function createRemoteBabyPhotoUploadQueueRepository(
-  storage: KeyValueStorage = AsyncStorage,
-): RemoteBabyPhotoUploadQueueRepository {
-  let pendingWrite: Promise<void> = Promise.resolve();
+export type CreateRemoteBabyPhotoUploadQueueRepositoryOptions = {
+  database?: TinyDaysSQLiteDatabase | Promise<TinyDaysSQLiteDatabase>;
+  legacyStorage?: KeyValueStorage | null;
+};
+
+export function createRemoteBabyPhotoUploadQueueRepository({
+  database,
+  legacyStorage = AsyncStorage,
+}: CreateRemoteBabyPhotoUploadQueueRepositoryOptions = {}): RemoteBabyPhotoUploadQueueRepository {
+  const queue = createSQLiteSyncQueue({
+    database,
+    queueType: "baby_photo_upload",
+    legacyStorage,
+    legacyStorageKey: REMOTE_BABY_PHOTO_UPLOAD_QUEUE_STORAGE_KEY,
+    isRecord: isRemoteBabyPhotoUploadQueueItem,
+    getId: (item) => item.local_photo_id,
+    getUserId: (item) => item.user_id,
+    getCreatedAt: (item) => item.created_at,
+    sort: sortQueueItems,
+  });
 
   return {
     async listItems() {
-      return readItems(storage);
+      return queue.list();
     },
     async saveItem(item) {
-      const writeOperation = pendingWrite.then(async () => {
-        const items = await readItems(storage);
-        const nextItems = sortQueueItems([
-          item,
-          ...items.filter(
-            (currentItem) => currentItem.local_photo_id !== item.local_photo_id,
-          ),
-        ]);
-
-        await storage.setItem(
-          REMOTE_BABY_PHOTO_UPLOAD_QUEUE_STORAGE_KEY,
-          JSON.stringify(nextItems),
-        );
-
-        return nextItems;
-      });
-
-      pendingWrite = writeOperation.then(
-        () => undefined,
-        () => undefined,
-      );
-
-      return writeOperation;
+      return queue.upsert(item);
     },
     async removeItem(localPhotoId) {
-      const writeOperation = pendingWrite.then(async () => {
-        const items = await readItems(storage);
-        const nextItems = items.filter(
-          (item) => item.local_photo_id !== localPhotoId,
-        );
-
-        await storage.setItem(
-          REMOTE_BABY_PHOTO_UPLOAD_QUEUE_STORAGE_KEY,
-          JSON.stringify(nextItems),
-        );
-
-        return nextItems;
-      });
-
-      pendingWrite = writeOperation.then(
-        () => undefined,
-        () => undefined,
-      );
-
-      return writeOperation;
+      return queue.remove(localPhotoId);
     },
   };
 }
@@ -110,30 +85,6 @@ export function createRemoteBabyPhotoUploadQueueItem(options: {
 
 export const remoteBabyPhotoUploadQueueRepository =
   createRemoteBabyPhotoUploadQueueRepository();
-
-async function readItems(
-  storage: KeyValueStorage,
-): Promise<RemoteBabyPhotoUploadQueueItem[]> {
-  const rawItems = await storage.getItem(
-    REMOTE_BABY_PHOTO_UPLOAD_QUEUE_STORAGE_KEY,
-  );
-
-  if (rawItems === null) {
-    return [];
-  }
-
-  try {
-    const parsedItems: unknown = JSON.parse(rawItems);
-
-    if (!Array.isArray(parsedItems)) {
-      return [];
-    }
-
-    return sortQueueItems(parsedItems.filter(isRemoteBabyPhotoUploadQueueItem));
-  } catch {
-    return [];
-  }
-}
 
 function sortQueueItems(
   items: readonly RemoteBabyPhotoUploadQueueItem[],

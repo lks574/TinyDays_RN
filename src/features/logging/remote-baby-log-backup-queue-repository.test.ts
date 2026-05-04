@@ -1,4 +1,5 @@
 import { createBabyLog } from "../../domain/baby-logs";
+import { createMemorySQLiteDatabase } from "../../shared/local-db/test-database";
 import {
   createRemoteBabyLogBackupQueueItem,
   createRemoteBabyLogBackupQueueRepository,
@@ -31,8 +32,10 @@ const log = createBabyLog(
 
 describe("createRemoteBabyLogBackupQueueRepository", () => {
   it("saves and loads queue items oldest first", async () => {
-    const storage = createMemoryStorage();
-    const repository = createRemoteBabyLogBackupQueueRepository(storage);
+    const repository = createRemoteBabyLogBackupQueueRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: null,
+    });
     const item = createRemoteBabyLogBackupQueueItem({
       log,
       userId: "remote-user",
@@ -41,16 +44,13 @@ describe("createRemoteBabyLogBackupQueueRepository", () => {
 
     await expect(repository.saveItem(item)).resolves.toEqual([item]);
     await expect(repository.listItems()).resolves.toEqual([item]);
-    expect(storage.setItem).toHaveBeenCalledWith(
-      "tinydays:remote_baby_log_backup_queue",
-      JSON.stringify([item]),
-    );
   });
 
   it("replaces an existing item with the same local log id", async () => {
-    const repository = createRemoteBabyLogBackupQueueRepository(
-      createMemoryStorage(),
-    );
+    const repository = createRemoteBabyLogBackupQueueRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: null,
+    });
     const firstItem = createRemoteBabyLogBackupQueueItem({
       log,
       userId: "remote-user",
@@ -71,9 +71,10 @@ describe("createRemoteBabyLogBackupQueueRepository", () => {
   });
 
   it("removes an item by local log id", async () => {
-    const repository = createRemoteBabyLogBackupQueueRepository(
-      createMemoryStorage(),
-    );
+    const repository = createRemoteBabyLogBackupQueueRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: null,
+    });
     const item = createRemoteBabyLogBackupQueueItem({
       log,
       userId: "remote-user",
@@ -85,9 +86,10 @@ describe("createRemoteBabyLogBackupQueueRepository", () => {
   });
 
   it("recovers with an empty list when stored JSON is invalid", async () => {
-    const repository = createRemoteBabyLogBackupQueueRepository(
-      createMemoryStorage("{"),
-    );
+    const repository = createRemoteBabyLogBackupQueueRepository({
+      database: createMemorySQLiteDatabase(),
+      legacyStorage: createMemoryStorage("{"),
+    });
 
     await expect(repository.listItems()).resolves.toEqual([]);
   });

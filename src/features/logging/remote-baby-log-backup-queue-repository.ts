@@ -5,11 +5,11 @@ import {
   type BabyLog,
   type BabyLogSource,
 } from "../../domain/baby-logs";
-
-type KeyValueStorage = {
-  getItem: (key: string) => Promise<string | null>;
-  setItem: (key: string, value: string) => Promise<void>;
-};
+import {
+  createSQLiteSyncQueue,
+  type KeyValueStorage,
+  type TinyDaysSQLiteDatabase,
+} from "../../shared/local-db/tinydays-sqlite";
 
 const REMOTE_BABY_LOG_BACKUP_QUEUE_STORAGE_KEY =
   "tinydays:remote_baby_log_backup_queue";
@@ -40,61 +40,36 @@ export type RemoteBabyLogBackupQueueRepository = {
   removeItem: (localLogId: string) => Promise<RemoteBabyLogBackupQueueItem[]>;
 };
 
-export function createRemoteBabyLogBackupQueueRepository(
-  storage: KeyValueStorage = AsyncStorage,
-): RemoteBabyLogBackupQueueRepository {
-  let pendingWrite: Promise<void> = Promise.resolve();
+export type CreateRemoteBabyLogBackupQueueRepositoryOptions = {
+  database?: TinyDaysSQLiteDatabase | Promise<TinyDaysSQLiteDatabase>;
+  legacyStorage?: KeyValueStorage | null;
+};
+
+export function createRemoteBabyLogBackupQueueRepository({
+  database,
+  legacyStorage = AsyncStorage,
+}: CreateRemoteBabyLogBackupQueueRepositoryOptions = {}): RemoteBabyLogBackupQueueRepository {
+  const queue = createSQLiteSyncQueue({
+    database,
+    queueType: "baby_log_backup",
+    legacyStorage,
+    legacyStorageKey: REMOTE_BABY_LOG_BACKUP_QUEUE_STORAGE_KEY,
+    isRecord: isRemoteBabyLogBackupQueueItem,
+    getId: (item) => item.local_log_id,
+    getUserId: (item) => item.user_id,
+    getCreatedAt: (item) => item.created_at,
+    sort: sortQueueItems,
+  });
 
   return {
     async listItems() {
-      return readItems(storage);
+      return queue.list();
     },
     async saveItem(item) {
-      const writeOperation = pendingWrite.then(async () => {
-        const items = await readItems(storage);
-        const nextItems = sortQueueItems([
-          item,
-          ...items.filter(
-            (currentItem) => currentItem.local_log_id !== item.local_log_id,
-          ),
-        ]);
-
-        await storage.setItem(
-          REMOTE_BABY_LOG_BACKUP_QUEUE_STORAGE_KEY,
-          JSON.stringify(nextItems),
-        );
-
-        return nextItems;
-      });
-
-      pendingWrite = writeOperation.then(
-        () => undefined,
-        () => undefined,
-      );
-
-      return writeOperation;
+      return queue.upsert(item);
     },
     async removeItem(localLogId) {
-      const writeOperation = pendingWrite.then(async () => {
-        const items = await readItems(storage);
-        const nextItems = items.filter(
-          (item) => item.local_log_id !== localLogId,
-        );
-
-        await storage.setItem(
-          REMOTE_BABY_LOG_BACKUP_QUEUE_STORAGE_KEY,
-          JSON.stringify(nextItems),
-        );
-
-        return nextItems;
-      });
-
-      pendingWrite = writeOperation.then(
-        () => undefined,
-        () => undefined,
-      );
-
-      return writeOperation;
+      return queue.remove(localLogId);
     },
   };
 }
@@ -121,30 +96,6 @@ export function createRemoteBabyLogBackupQueueItem(options: {
 
 export const remoteBabyLogBackupQueueRepository =
   createRemoteBabyLogBackupQueueRepository();
-
-async function readItems(
-  storage: KeyValueStorage,
-): Promise<RemoteBabyLogBackupQueueItem[]> {
-  const rawItems = await storage.getItem(
-    REMOTE_BABY_LOG_BACKUP_QUEUE_STORAGE_KEY,
-  );
-
-  if (rawItems === null) {
-    return [];
-  }
-
-  try {
-    const parsedItems: unknown = JSON.parse(rawItems);
-
-    if (!Array.isArray(parsedItems)) {
-      return [];
-    }
-
-    return sortQueueItems(parsedItems.filter(isRemoteBabyLogBackupQueueItem));
-  } catch {
-    return [];
-  }
-}
 
 function sortQueueItems(
   items: readonly RemoteBabyLogBackupQueueItem[],

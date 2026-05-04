@@ -26,11 +26,13 @@ PR-01 기준으로 아래 기술과 버전을 사용합니다.
 | 런타임 | Node.js | 22 LTS |
 | 패키지 매니저 | npm | `package-lock.json` 기준 |
 | 앱 프레임워크 | Expo | `~54.0.33` |
+| Expo asset | `expo-asset` | `~12.0.13` |
 | 이미지 선택 | `expo-image-picker` | `~17.0.11` |
 | 앱 라우팅 | Expo Router | `~6.0.23` |
 | UI 런타임 | React Native | `0.81.5` |
 | UI 라이브러리 | React | `19.1.0` |
 | 로컬 저장소 | `@react-native-async-storage/async-storage` | `2.2.0` |
+| 로컬 DB | `expo-sqlite` | `~16.0.10` |
 | Supabase client | `@supabase/supabase-js` | `^2.105.1` |
 | React Native URL polyfill | `react-native-url-polyfill` | `^3.0.0` |
 | 최종 로컬 DB 후보 | Expo SQLite | 도입 시점에 확정 |
@@ -160,6 +162,16 @@ SPEC-LOG-006 기준으로 기록 탭은 로컬 `AsyncStorage` 기록을 먼저 �
 - 1차 downsync는 read-through 조회이며 원격 row를 `AsyncStorage`에 영구 저장하지 않는다.
 - 수정/삭제 downsync, 충돌 해결, 원격-only 과거 날짜 발견, Expo SQLite 이전은 후속 작업으로 둔다.
 
+## Expo SQLite 로컬 저장소
+
+SPEC-CORE-001 기준으로 `baby_logs`, 사진 metadata, 원격 재시도 queue는 Expo SQLite `tinydays.db`를 기본 저장소로 사용한다.
+
+- `baby_logs`: 로컬 기록 저장과 조회.
+- `baby_photo_metadata`: 사진 탭 metadata 저장, 조회, 삭제.
+- `sync_queue`: `baby_log_backup`, `baby_photo_upload` queue item 통합 저장.
+
+기존 AsyncStorage records는 해당 SQLite table이 비어 있을 때 유효한 record만 가져온다. 가족 context와 remote family mapping은 아직 AsyncStorage 저장소를 유지한다.
+
 ## R2 사진 원격 저장
 
 PR-17 기준으로 사진 원본 원격 저장은 Supabase Edge Function `media-r2-url`이 담당한다.
@@ -224,14 +236,9 @@ SPEC-PHOTO-006 기준으로 사진 삭제는 local-first 흐름을 유지하면�
 1. 필요한 시점에 포매팅 기준을 추가한다.
 2. 경로 alias를 추가한다.
 3. 아기 기록과 자연어 파서 초기 도메인 모듈을 만든다.
-4. 기록 수정/삭제, 날짜별 조회, sync queue가 필요해지면 `baby_logs`부터 Expo SQLite로 이전한다.
-5. PR-16에서 `baby_logs` 클라우드 백업과 최소 재시도 queue를 추가한다.
-6. PR-17에서 R2 signed URL 기반 사진 원격 저장 1차를 추가한다.
-7. PR-18에서 원격 `media_assets` 조회와 signed download URL 표시를 추가한다.
-8. PR-19에서 사진 원격 업로드 실패 재시도 queue를 추가한다.
-9. SPEC-PHOTO-006에서 사진 삭제와 R2 object 정리 경로를 추가한다.
-10. SPEC-FAMILY-004에서 가족 초대와 구성원 연결 1차를 추가한다.
-11. SPEC-LOG-006에서 `baby_logs` 원격 read-through downsync를 추가한다.
+4. 가족 context와 remote family mapping이 날짜별 조회나 동기화 대상이 되면 SQLite 이전 범위를 검토한다.
+5. sync queue의 백그라운드 재시도와 사용자 표시 상태를 추가한다.
+6. 완전한 downsync, 수정/삭제 동기화, 충돌 해결이 필요해지면 SQLite typed column migration을 추가한다.
 
 ## 초기 도메인 모듈
 

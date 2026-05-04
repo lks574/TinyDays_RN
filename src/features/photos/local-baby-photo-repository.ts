@@ -1,11 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { sortPhotosByRecent, type BabyPhoto } from "../../domain/photos";
-
-type KeyValueStorage = {
-  getItem: (key: string) => Promise<string | null>;
-  setItem: (key: string, value: string) => Promise<void>;
-};
+import {
+  createSQLiteJsonTable,
+  type KeyValueStorage,
+  type TinyDaysSQLiteDatabase,
+} from "../../shared/local-db/tinydays-sqlite";
 
 const BABY_PHOTOS_STORAGE_KEY = "tinydays:baby_photos";
 
@@ -15,82 +15,40 @@ export type BabyPhotoRepository = {
   deletePhoto: (photoId: string) => Promise<BabyPhoto[]>;
 };
 
-export function createLocalBabyPhotoRepository(
-  storage: KeyValueStorage = AsyncStorage,
-): BabyPhotoRepository {
-  let pendingSave: Promise<void> = Promise.resolve();
+export type CreateLocalBabyPhotoRepositoryOptions = {
+  database?: TinyDaysSQLiteDatabase | Promise<TinyDaysSQLiteDatabase>;
+  legacyStorage?: KeyValueStorage | null;
+};
+
+export function createLocalBabyPhotoRepository({
+  database,
+  legacyStorage = AsyncStorage,
+}: CreateLocalBabyPhotoRepositoryOptions = {}): BabyPhotoRepository {
+  const table = createSQLiteJsonTable({
+    database,
+    tableName: "baby_photo_metadata",
+    legacyStorage,
+    legacyStorageKey: BABY_PHOTOS_STORAGE_KEY,
+    isRecord: isBabyPhoto,
+    getId: (photo) => photo.id,
+    getSortValue: (photo) => photo.captured_at,
+    sort: sortPhotosByRecent,
+  });
 
   return {
     async listPhotos() {
-      return readPhotos(storage);
+      return table.list();
     },
     async savePhoto(photo) {
-      const saveOperation = pendingSave.then(async () => {
-        const photos = await readPhotos(storage);
-        const nextPhotos = sortPhotosByRecent([
-          photo,
-          ...photos.filter((item) => item.id !== photo.id),
-        ]);
-
-        await storage.setItem(
-          BABY_PHOTOS_STORAGE_KEY,
-          JSON.stringify(nextPhotos),
-        );
-
-        return nextPhotos;
-      });
-
-      pendingSave = saveOperation.then(
-        () => undefined,
-        () => undefined,
-      );
-
-      return saveOperation;
+      return table.upsert(photo);
     },
     async deletePhoto(photoId) {
-      const deleteOperation = pendingSave.then(async () => {
-        const photos = await readPhotos(storage);
-        const nextPhotos = photos.filter((photo) => photo.id !== photoId);
-
-        await storage.setItem(
-          BABY_PHOTOS_STORAGE_KEY,
-          JSON.stringify(nextPhotos),
-        );
-
-        return nextPhotos;
-      });
-
-      pendingSave = deleteOperation.then(
-        () => undefined,
-        () => undefined,
-      );
-
-      return deleteOperation;
+      return table.remove(photoId);
     },
   };
 }
 
 export const localBabyPhotoRepository = createLocalBabyPhotoRepository();
-
-async function readPhotos(storage: KeyValueStorage): Promise<BabyPhoto[]> {
-  const rawPhotos = await storage.getItem(BABY_PHOTOS_STORAGE_KEY);
-
-  if (rawPhotos === null) {
-    return [];
-  }
-
-  try {
-    const parsedPhotos: unknown = JSON.parse(rawPhotos);
-
-    if (!Array.isArray(parsedPhotos)) {
-      return [];
-    }
-
-    return sortPhotosByRecent(parsedPhotos.filter(isBabyPhoto));
-  } catch {
-    return [];
-  }
-}
 
 function isBabyPhoto(value: unknown): value is BabyPhoto {
   if (typeof value !== "object" || value === null) {
