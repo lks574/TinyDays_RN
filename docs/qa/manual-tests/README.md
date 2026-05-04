@@ -7,6 +7,7 @@
 - `SPEC-FAMILY-005.md`: 가족 구성원 목록 조회와 역할 표시.
 - `SPEC-PHOTO-004.md`: 원격 사진 조회와 R2 signed download URL.
 - `SPEC-PHOTO-006.md`: 사진 삭제와 R2 object 정리.
+- `SPEC-PHOTO-007.md`: 사진 signed URL 캐시와 만료 갱신.
 
 ## 작성 규칙
 

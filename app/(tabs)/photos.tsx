@@ -32,6 +32,7 @@ import {
   deleteBabyPhotoWithRemoteCleanup,
   loadBabyPhotosWithRemoteDownloads,
   localBabyPhotoRepository,
+  refreshBabyPhotoDownloadUrl,
   saveBabyPhotoWithRemoteUpload,
 } from '../../src/features/photos';
 import {
@@ -68,6 +69,9 @@ export default function PhotosScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [refreshingPhotoIds, setRefreshingPhotoIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const now = new Date().toISOString();
   const selectedChild = useMemo(
@@ -298,6 +302,47 @@ export default function PhotosScreen() {
     }
   }
 
+  async function handlePhotoImageError(photo: BabyPhoto) {
+    if (
+      photo.remote_media_asset_id === null ||
+      photo.remote_media_asset_id === undefined ||
+      refreshingPhotoIds.has(photo.id)
+    ) {
+      return;
+    }
+
+    setRefreshingPhotoIds((currentIds) => new Set(currentIds).add(photo.id));
+
+    try {
+      const result = await refreshBabyPhotoDownloadUrl(photo, {
+        mappingRepository: remoteFamilyMappingRepository,
+      });
+
+      if (result.status === 'refreshed') {
+        setPhotos((currentPhotos) =>
+          currentPhotos.map((currentPhoto) =>
+            currentPhoto.id === photo.id ? result.photo : currentPhoto,
+          ),
+        );
+        setStatusMessage('');
+        setErrorMessage('');
+        return;
+      }
+
+      if (result.status === 'failed') {
+        setStatusMessage('');
+        setErrorMessage('원격 사진 URL을 새로 받지 못했습니다.');
+      }
+    } finally {
+      setRefreshingPhotoIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+        nextIds.delete(photo.id);
+
+        return nextIds;
+      });
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -402,6 +447,9 @@ export default function PhotosScreen() {
                     source={{ uri: photo.uri }}
                     style={styles.photoImage}
                     resizeMode="cover"
+                    onError={() => {
+                      void handlePhotoImageError(photo);
+                    }}
                   />
                   <View style={styles.photoOverlay}>
                     <Text style={styles.photoTime}>

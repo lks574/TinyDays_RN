@@ -25,6 +25,8 @@ export type RemoteBabyPhotoDownloadUrl = {
   expires_at: string;
 };
 
+export const REMOTE_BABY_PHOTO_DOWNLOAD_URL_REFRESH_BUFFER_MS = 60 * 1000;
+
 export type RemoteBabyPhotoAsset = {
   id: string;
   family_id: string;
@@ -116,6 +118,27 @@ export function normalizeRemoteBabyPhotoDownloadUrl(
     download_url: candidate.download_url,
     expires_at: candidate.expires_at,
   };
+}
+
+export function isRemoteBabyPhotoDownloadUrlFresh(
+  downloadUrl: RemoteBabyPhotoDownloadUrl,
+  options: {
+    now: string;
+    refreshBufferMs?: number;
+  },
+): boolean {
+  const expiresAt = new Date(downloadUrl.expires_at).getTime();
+  const now = new Date(options.now).getTime();
+
+  if (!Number.isFinite(expiresAt) || !Number.isFinite(now)) {
+    return false;
+  }
+
+  const refreshBufferMs =
+    options.refreshBufferMs ??
+    REMOTE_BABY_PHOTO_DOWNLOAD_URL_REFRESH_BUFFER_MS;
+
+  return expiresAt - now > refreshBufferMs;
 }
 
 export function normalizeRemoteBabyPhotoAsset(

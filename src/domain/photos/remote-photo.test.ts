@@ -3,6 +3,7 @@ import { createBabyPhoto } from "./photo";
 import {
   createBabyPhotoFromRemoteAsset,
   createRemoteBabyPhotoUploadRequest,
+  isRemoteBabyPhotoDownloadUrlFresh,
   mergeLocalAndRemoteBabyPhotos,
   normalizeRemoteBabyPhotoAsset,
   normalizeRemoteBabyPhotoDownloadUrl,
@@ -167,6 +168,27 @@ describe("remote baby photo download mapping", () => {
         userId,
       ),
     ).toBeNull();
+  });
+
+  it("treats signed download urls inside the refresh buffer as stale", () => {
+    const downloadUrl = {
+      media_asset_id: "media-1",
+      download_url: "https://r2.example.test/download",
+      expires_at: "2026-04-30T13:10:00.000Z",
+    };
+
+    expect(
+      isRemoteBabyPhotoDownloadUrlFresh(downloadUrl, {
+        now: "2026-04-30T13:08:30.000Z",
+        refreshBufferMs: 60_000,
+      }),
+    ).toBe(true);
+    expect(
+      isRemoteBabyPhotoDownloadUrlFresh(downloadUrl, {
+        now: "2026-04-30T13:09:30.000Z",
+        refreshBufferMs: 60_000,
+      }),
+    ).toBe(false);
   });
 });
 
